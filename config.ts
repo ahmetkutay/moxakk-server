@@ -18,8 +18,17 @@ export function setupMiddleware(app: express.Application) {
         },
     }));
 
+    const allowedOrigins = (process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000']).map(origin => origin.trim());
+    allowedOrigins.push('https://moxakk.com');
+
     app.use(cors({
-        origin: process.env.ALLOWED_ORIGINS?.split(',') || 'http://localhost:3000',
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
         methods: ['GET', 'POST'],
         allowedHeaders: ['Content-Type', 'Authorization'],
     }));
