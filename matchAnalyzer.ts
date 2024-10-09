@@ -49,7 +49,10 @@ export async function analyzeFootballMatch(homeTeam: string, awayTeam: string): 
 
 async function searchMatch(matchInput: string): Promise<string> {
   const url = `https://www.bilyoner.com/iddaa`;
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
   const page = await browser.newPage();
 
   try {
@@ -106,7 +109,10 @@ async function getMatchDetails(matchId: string, homeTeam: string, awayTeam: stri
   const unavailablePlayersUrl = `https://www.bilyoner.com/mac-karti/futbol/${matchId}/sakat-cezali`;
   const detailsUrl = `https://www.bilyoner.com/mac-karti/futbol/${matchId}/detay`;
   
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
   const page = await browser.newPage();
 
   try {
