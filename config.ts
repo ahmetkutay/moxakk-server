@@ -1,7 +1,9 @@
+import * as http from 'http';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 
 export function setupMiddleware(app: express.Application) {
     app.use(helmet({
@@ -22,15 +24,10 @@ export function setupMiddleware(app: express.Application) {
     allowedOrigins.push('https://moxakk.com');
 
     app.use(cors({
-        origin: (origin, callback) => {
-            if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-                callback(null, true);
-            } else {
-                callback(new Error('Not allowed by CORS'));
-            }
-        },
-        methods: ['GET', 'POST'],
+        origin: 'https://moxakk.com',
+        methods: ['GET', 'POST', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization'],
+        credentials: true,
     }));
 
     app.use(express.json());
@@ -40,4 +37,33 @@ export function setupMiddleware(app: express.Application) {
         limit: 100,
     });
     app.use(limiter);
+
+    // Add logging middleware
+    app.use((req, res, next) => {
+        console.log('Received request:', req.method, req.url);
+        next();
+    });
+
+    // Modify the proxy middleware
+    app.use('/api', createProxyMiddleware({
+        target: 'https://omniapotentia.com',
+        changeOrigin: true,
+        pathRewrite: {
+            '^/api': '', // remove /api from the URL
+        },
+        onProxyReq: (proxyReq: http.ClientRequest, req: express.Request, res: express.Response) => {
+            // Log the proxied request for debugging
+            console.log('Proxying request to:', proxyReq.path);
+        },
+        onProxyRes: (proxyRes: http.IncomingMessage, req: express.Request, res: express.Response) => {
+            proxyRes.headers['Access-Control-Allow-Origin'] = 'https://moxakk.com';
+            proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
+            proxyRes.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
+            proxyRes.headers['Access-Control-Allow-Credentials'] = 'true';
+                
+            // Log the proxied response for debugging
+            console.log('Proxy response status:', proxyRes.statusCode);
+            console.log('Proxy response headers:', proxyRes.headers);
+        }
+    } as any));
 }
