@@ -53,12 +53,6 @@ async function searchMatch(matchInput: string): Promise<string> {
     headless: true,
     args: [
       '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--no-zygote',
-      '--single-process',
-      '--disable-extensions'
     ],
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
   });
@@ -122,12 +116,6 @@ async function getMatchDetails(matchId: string, homeTeam: string, awayTeam: stri
     headless: true,
     args: [
       '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--no-zygote',
-      '--single-process',
-      '--disable-extensions'
     ],
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
   });
@@ -185,12 +173,6 @@ async function getH2HData(matchId: string, homeTeam: string, awayTeam: string): 
     headless: true,
     args: [
       '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--no-zygote',
-      '--single-process',
-      '--disable-extensions'
     ],
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
   });
