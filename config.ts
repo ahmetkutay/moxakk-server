@@ -24,7 +24,7 @@ export function setupMiddleware(app: express.Application) {
     allowedOrigins.push('https://moxakk.com');
 
     app.use(cors({
-        origin: 'https://moxakk.com',
+        origin: ['https://moxakk.com', 'http://localhost:3000', 'http://localhost:3005'], 
         methods: ['GET', 'POST', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization'],
         credentials: true,
