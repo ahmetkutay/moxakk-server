@@ -37,6 +37,7 @@ RUN apt-get update && apt-get install -y \
     libxrender1 \
     libxss1 \
     libxtst6 \
+    chromium-browser \
     --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -58,6 +59,7 @@ RUN npm run build
 
 # Ensure Puppeteer uses the installed Chromium in the container
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Expose the port the app runs on
 EXPOSE 8080
