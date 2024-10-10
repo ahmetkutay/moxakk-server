@@ -45,25 +45,29 @@ export function setupMiddleware(app: express.Application) {
     });
 
     // Modify the proxy middleware
-    app.use('/api', createProxyMiddleware({
+    const proxyOptions = {
         target: 'https://omniapotentia.com',
         changeOrigin: true,
         pathRewrite: {
             '^/api': '', // remove /api from the URL
         },
-        onProxyReq: (proxyReq: http.ClientRequest, req: express.Request, res: express.Response) => {
-            // Log the proxied request for debugging
-            console.log('Proxying request to:', proxyReq.path);
+        on: {
+            proxyReq: (proxyReq: any, req: any, res: any) => {
+                // Log the proxied request for debugging
+                console.log('Proxying request to:', proxyReq.path);
+            }
         },
-        onProxyRes: (proxyRes: http.IncomingMessage, req: express.Request, res: express.Response) => {
+        onProxyRes: (proxyRes: any, req: any, res: any) => {
             proxyRes.headers['Access-Control-Allow-Origin'] = 'https://moxakk.com';
             proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
-            proxyRes.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
-            proxyRes.headers['Access-Control-Allow-Credentials'] = 'true';
-                
-            // Log the proxied response for debugging
-            console.log('Proxy response status:', proxyRes.statusCode);
-            console.log('Proxy response headers:', proxyRes.headers);
-        }
-    } as any));
+        },
+        // Increase timeout to handle potential slow responses
+        proxyTimeout: 60000, // 60 seconds
+        timeout: 60000, // 60 seconds
+    } as any;
+
+    app.use('/api', createProxyMiddleware(proxyOptions));
+
+    // Handle preflight requests
+    app.options('*', cors());
 }
