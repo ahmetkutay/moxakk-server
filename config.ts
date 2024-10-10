@@ -20,9 +20,11 @@ export function setupMiddleware(app: express.Application) {
         },
     }));
 
-    // Allow all origins
+    const allowedOrigins = (process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000']).map(origin => origin.trim());
+    allowedOrigins.push('https://moxakk.com');
+
     app.use(cors({
-        origin: '*',
+        origin: ['https://moxakk.com', 'http://localhost:3000', 'http://localhost:3005'], 
         methods: ['GET', 'POST', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization'],
         credentials: true,
@@ -54,8 +56,7 @@ export function setupMiddleware(app: express.Application) {
             console.log('Proxying request to:', proxyReq.path);
         },
         onProxyRes: (proxyRes: http.IncomingMessage, req: express.Request, res: express.Response) => {
-            // Allow all origins in the response headers
-            proxyRes.headers['Access-Control-Allow-Origin'] = '*';
+            proxyRes.headers['Access-Control-Allow-Origin'] = 'https://moxakk.com';
             proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
             proxyRes.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
             proxyRes.headers['Access-Control-Allow-Credentials'] = 'true';
@@ -65,7 +66,4 @@ export function setupMiddleware(app: express.Application) {
             console.log('Proxy response headers:', proxyRes.headers);
         }
     } as any));
-
-    // Handle preflight requests
-    app.options('*', cors());
 }

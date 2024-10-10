@@ -53,6 +53,9 @@ RUN npm install
 # Copy the rest of the application code
 COPY . .
 
+# Build the TypeScript files
+RUN npm run build
+
 # Ensure Puppeteer uses the installed Chromium in the container
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
