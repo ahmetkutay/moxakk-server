@@ -9,8 +9,8 @@ const router = express.Router();
 router.post('/get-match', async (req, res) => {
     try {
         const result = await analyzeFootballMatch(req.body.homeTeam, req.body.awayTeam);
-        //const parsedText: ParsedText = result;
-        //const content = await generateMatchCommentary(parsedText);
+        const parsedText: ParsedText = result;
+        const content = await generateMatchCommentary(parsedText);
         res.send(result);
     } catch (error) {
         console.error('Error in /get-match:', error);
