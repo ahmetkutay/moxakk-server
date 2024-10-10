@@ -11,7 +11,7 @@ router.post('/get-match', async (req, res) => {
         const result = await analyzeFootballMatch(req.body.homeTeam, req.body.awayTeam);
         const parsedText: ParsedText = result;
         const content = await generateMatchCommentary(parsedText);
-        res.send(result);
+        res.send(content);
     } catch (error) {
         console.error('Error in /get-match:', error);
         res.status(500).send(`Error generating content: ${error instanceof Error ? error.message : 'Unknown error'}`);
