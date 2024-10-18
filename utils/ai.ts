@@ -63,7 +63,8 @@ export async function getCohereResponse(prompt: string): Promise<any> {
       },
     ],
   });
-
+  console.log("--------------------------------Cohere Response --------------------------------");
+  console.log(response.message?.content?.[0]?.text);
   return response.message?.content?.[0]?.text;
 }
 
@@ -75,5 +76,7 @@ export async function getAnthropicResponse(prompt: string): Promise<any> {
     system:
       "You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Base on the data you had and my givings. Return as table and under table 1 simple comment for why you think.",
   });
+  console.log("--------------------------------Anthropic Response --------------------------------");
+  console.log(response.content[0] && 'text' in response.content[0] ? response.content[0].text : '');
   return response.content[0] && 'text' in response.content[0] ? response.content[0].text : '';
 }

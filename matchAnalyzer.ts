@@ -1,8 +1,10 @@
 import axios from 'axios';
 import puppeteer from 'puppeteer';
+import Match from './MatchDataModel'; // Import the Match model
 
 interface MatchData {
   id: string;
+  matchInput: string;
   venue: string;
   unavailablePlayers: {
     home: string[];
@@ -34,17 +36,37 @@ function createDefaultWeatherData(): WeatherData {
 
 export async function analyzeFootballMatch(homeTeam: string, awayTeam: string): Promise<MatchData> {
   const matchInput = `${homeTeam} - ${awayTeam}`;
+
+  // Check if the match data already exists in the database
+  const existingMatch = await Match.findOne({ id: matchInput });
+  if (existingMatch) {
+    console.log('Returning existing match data from the database.');
+    return existingMatch.toObject() as MatchData; // Convert Mongoose document to plain JavaScript object
+  }
+
+  // If not found, proceed with scraping
   const matchId = await searchMatch(matchInput);
   const matchDetails = await getMatchDetails(matchId, homeTeam, awayTeam);
   const h2hData = await getH2HData(matchId, homeTeam, awayTeam);
   const weatherData = matchDetails.venue ? await getWeatherData(matchDetails.venue) : createDefaultWeatherData();
-  return {
+
+  const matchData: MatchData = {
     id: matchInput,
+    matchInput: matchInput,
     unavailablePlayers: matchDetails.unavailablePlayers ?? { home: [], away: [] },
     venue: matchDetails.venue ?? '',
     weather: weatherData,
     recentMatches: h2hData.recentMatches || { home: [], away: [], between: [] },
   };
+
+  // Save to MongoDB
+  await Match.findOneAndUpdate(
+    { id: matchData.id },
+    matchData,
+    { upsert: true, new: true } // Create a new document if it doesn't exist
+  );
+
+  return matchData;
 }
 
 async function searchMatch(matchInput: string): Promise<string> {

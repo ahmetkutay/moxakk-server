@@ -2,13 +2,15 @@ import express from 'express';
 import dotenv from 'dotenv';
 import { setupMiddleware } from './config';
 import matchRoutes from './routes/match';
-
+import connectDB from './db';
 dotenv.config();
 
 const app = express();
 const port = 8080;
 
 setupMiddleware(app);
+
+connectDB();
 
 app.use('/api', matchRoutes);
 
