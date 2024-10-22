@@ -35,7 +35,7 @@ function createDefaultWeatherData(): WeatherData {
 }
 
 export async function analyzeFootballMatch(homeTeam: string, awayTeam: string): Promise<MatchData> {
-  const matchInput = `${homeTeam} - ${awayTeam}`;
+  const matchInput = `${homeTeam}-${awayTeam}`;
 
   // Check if the match data already exists in the database
   const existingMatch = await Match.findOne({ id: matchInput });
@@ -75,39 +75,73 @@ async function searchMatch(matchInput: string): Promise<string> {
     headless: true,
     args: [
       '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu'
     ],
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
   });
   const page = await browser.newPage();
 
   try {
-    await page.goto(url, { waitUntil: 'networkidle0' });
+    console.log('Navigating to URL:', url);
+    await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
     
+    console.log('Page loaded. Current URL:', page.url());
+
+    // Check if we're redirected to a different page (e.g., Cloudflare challenge)
+    if (!page.url().includes('bilyoner.com')) {
+      console.log('Redirected to:', page.url());
+      throw new Error('Page redirected, possibly due to anti-bot protection');
+    }
+
+    // Wait for the content to load
+    await page.waitForSelector('.sportsbookList', { timeout: 10000 });
+
+    console.log('sportsbookList found. Searching for match...');
+
     const matchElement = await page.evaluate(async (input) => {
       const scrollContainer = document.querySelector('.sportsbookList');
-      let matchLink = null;
+      let matchId = null;
       let lastHeight = 0;
       const scrollStep = 300;
+      let scrollAttempts = 0;
+      const maxScrollAttempts = 20;
 
-      while (!matchLink) {
-        const links = Array.from(document.querySelectorAll('a.event-row-prematch__cells__teams'));
-        matchLink = links.find(link => link.textContent?.includes(input))?.getAttribute('href');
+      while (!matchId && scrollAttempts < maxScrollAttempts) {
+        const items = Array.from(document.querySelectorAll('.events-container__item'));
+        for (const item of items) {
+          const linkElement = item.querySelector('.event-row-prematch__cells__teams');
+          if (linkElement) {
+            const teams = linkElement.textContent?.split('-').map(team => team.trim());
+            if (teams && teams.length === 2 && 
+                (teams[0].includes(input.split('-')[0]) && teams[1].includes(input.split('-')[1]))) {
+              matchId = item.id;
+              break;
+            }
+          }
+        }
 
-        if (matchLink) break;
+        if (matchId) break;
 
         if (scrollContainer) {
           scrollContainer.scrollTop += scrollStep;
           await new Promise(resolve => setTimeout(resolve, 500));
         }
 
-        const newHeight = parseFloat(scrollContainer?.querySelector('div')?.style.height ?? '0');
+        const newHeight = scrollContainer?.scrollHeight || 0;
         if (newHeight === lastHeight) {
-          break;
+          scrollAttempts++;
+        } else {
+          scrollAttempts = 0;
         }
         lastHeight = newHeight;
       }
 
-      return matchLink;
+      return matchId;
     }, matchInput);
     
     if (!matchElement) {
@@ -115,13 +149,8 @@ async function searchMatch(matchInput: string): Promise<string> {
       throw new Error('Match not found');
     }
     
-    const matchId = matchElement.match(/\/futbol\/(\d+)/)?.[1];
-    
-    if (!matchId) {
-      throw new Error('Match ID not found');
-    }
-    
-    return matchId;
+    console.log('Match found. ID:', matchElement);
+    return matchElement;
   } catch (error) {
     console.error(`Error in searchMatch: ${error}`);
     throw error;
@@ -204,8 +233,16 @@ async function getH2HData(matchId: string, homeTeam: string, awayTeam: string): 
     await page.goto(url, { waitUntil: 'networkidle0' });
     
     const getMatches = async (selector: string, type: string) => {
-      return page.$$eval(selector, rows => 
-        rows.slice(0, 5).map(row => {
+      // Check if the "expand" button exists and click it if present
+      const expandButtonSelector = `${selector} .quick-statistics__table__body__row__open-button`;
+      const expandButton = await page.$(expandButtonSelector);
+      if (expandButton) {
+        await expandButton.click();
+        await page.waitForNetworkIdle(); // Replace waitForTimeout with waitForNetworkIdle
+      }
+
+      return page.$$eval(`${selector} .team-against-row`, rows => 
+        rows.map(row => {
           const date = row.querySelector('.team-against-row__date')?.textContent?.trim().split(' ')[0];
           const homeTeam = row.querySelector('.team-against-row__home span')?.textContent?.trim();
           const awayTeam = row.querySelector('.team-against-row__away span')?.textContent?.trim();
@@ -235,8 +272,8 @@ async function getH2HData(matchId: string, homeTeam: string, awayTeam: string): 
       between: string[];
     } = { home: [], away: [], between: [] };
 
-    recentMatches.home = await getMatches('.quick-statistics__table:nth-child(1) .quick-statistics__table__body--short .team-against-row', `${homeTeam}`);
-    recentMatches.away = await getMatches('.quick-statistics__table:nth-child(2) .quick-statistics__table__body--short .team-against-row', `${awayTeam}`);
+    recentMatches.home = await getMatches('.quick-statistics__table:nth-child(1) .quick-statistics__table__body', `${homeTeam}`);
+    recentMatches.away = await getMatches('.quick-statistics__table:nth-child(2) .quick-statistics__table__body', `${awayTeam}`);
     
     await page.evaluate(() => {
       const tabElement = document.querySelector('label[for="tab1_1"]');

@@ -3,13 +3,31 @@ import OpenAI from "openai";
 import dotenv from "dotenv";
 import Anthropic from "@anthropic-ai/sdk";
 import { CohereClientV2 } from "cohere-ai";
+import { Mistral } from '@mistralai/mistralai';
 dotenv.config();
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY as string);
 const model: GenerativeModel = genAI.getGenerativeModel({
   model: "gemini-1.5-flash",
-  systemInstruction:
-    "You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Base on the data you had and my givings. Return as table and under table 1 simple comment for why you think.",
+  systemInstruction: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Base on the data you had and my givings. Return ONLY the JSON object with these predictions, no additional text or explanation.
+
+   Example format:
+   {
+     "winProbabilities": {
+       "homeTeam": 45,
+       "awayTeam": 35%,
+       "draw": 20%
+     },
+     "likelyScoreline": "2-1",
+     "likelyScorelinePrediction": "65%",
+     "overUnderPrediction": "over",
+     "overUnderPredictionProbability": "65%",
+     "bothTeamsToScore": true,
+     "bothTeamsToScoreProbability": "65%",
+     "totalGoals": 3,
+     "totalGoalsPrediction": "65%",
+     "commentary": "An comprehensive commentary on the match"
+   }`,
 });
 const openAI = new OpenAI({ apiKey: process.env.OPENAI_API_KEY as string });
 const cohere = new CohereClientV2({
@@ -20,12 +38,11 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY as string,
 });
 
+const apiKey = process.env.MISTRAL_API_KEY;
+const client = new Mistral({apiKey: apiKey});
+
 export async function getGeminiResponse(prompt: string): Promise<string> {
   const response = await model.generateContent(prompt);
-  console.log(
-    "--------------------------------Gemini Response --------------------------------"
-  );
-  console.log(response.response.text());
   return response.response.text();
 }
 
@@ -35,16 +52,29 @@ export async function getOpenAIResponse(prompt: string): Promise<string> {
     messages: [
       {
         role: "system",
-        content:
-          "You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Base on the data you had and my givings. Return as table and under table 1 simple comment for why you think.",
+        content: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Base on the data you had and my givings. Return ONLY the JSON object with these predictions, no additional text or explanation.
+
+Example format:
+{
+  "winProbabilities": {
+    "homeTeam": 45%,
+    "awayTeam": 35%,
+    "draw": 20%
+  },
+  "likelyScoreline": "2-1",
+  "likelyScorelinePrediction": "65%",
+  "overUnderPrediction": "over",
+  "overUnderPredictionProbability": "65%",
+  "bothTeamsToScore": true,
+  "bothTeamsToScoreProbability": "65%",
+  "totalGoals": 3,
+  "totalGoalsPrediction": "65%",
+  "commentary": "An comprehensive commentary on the match"
+}`,
       },
       { role: "user", content: prompt },
     ],
   });
-  console.log(
-    "--------------------------------OpenAI Response --------------------------------"
-  );
-  console.log(response.choices[0].message.content);
   return response.choices[0].message.content || "";
 }
 
@@ -58,13 +88,28 @@ export async function getCohereResponse(prompt: string): Promise<any> {
       },
       {
         role: "assistant",
-        content:
-          "You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Base on the data you had and my givings. Return as table and under table 1 simple comment for why you think.",
+        content: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Based on the data you have and my input, return ONLY a JSON object with these predictions, no additional text or explanation.
+
+Example format:
+{
+  "winProbabilities": {
+    "homeTeam": 45%,
+    "awayTeam": 35%,
+    "draw": 20%
+  },
+  "likelyScoreline": "2-1",
+  "likelyScorelinePrediction": "65%",
+  "overUnderPrediction": "over",
+  "overUnderPredictionProbability": "65%",
+  "bothTeamsToScore": true,
+  "bothTeamsToScoreProbability": "65%",
+  "totalGoals": 3,
+  "totalGoalsPrediction": "65%",
+  "commentary": "An comprehensive commentary on the match"
+}`,
       },
     ],
   });
-  console.log("--------------------------------Cohere Response --------------------------------");
-  console.log(response.message?.content?.[0]?.text);
   return response.message?.content?.[0]?.text;
 }
 
@@ -73,10 +118,56 @@ export async function getAnthropicResponse(prompt: string): Promise<any> {
     model: "claude-3-haiku-20240307",
     max_tokens: 1024,
     messages: [{ role: "user", content: prompt }],
-    system:
-      "You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Base on the data you had and my givings. Return as table and under table 1 simple comment for why you think.",
+    system: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Based on the data you have and my input, return ONLY a JSON object with these predictions, no additional text or explanation.
+
+Example format:
+{
+  "winProbabilities": {
+    "homeTeam": 45%,
+    "awayTeam": 35%,
+    "draw": 20%
+  },
+  "likelyScoreline": "2-1",
+  "likelyScorelinePrediction": "65%",
+  "overUnderPrediction": "over",
+  "overUnderPredictionProbability": "65%",
+  "bothTeamsToScore": true,
+  "bothTeamsToScoreProbability": "65%",
+  "totalGoals": 3,
+  "totalGoalsPrediction": "65%",
+  "commentary": "An comprehensive commentary on the match"
+}`,
   });
-  console.log("--------------------------------Anthropic Response --------------------------------");
-  console.log(response.content[0] && 'text' in response.content[0] ? response.content[0].text : '');
   return response.content[0] && 'text' in response.content[0] ? response.content[0].text : '';
+}
+
+
+
+export async function getMistralResponse(prompt: string): Promise<any> {
+  const chatResponse = await client.chat.complete({
+    model: 'pixtral-12b-2409',
+    messages: [
+      {role: 'system', content: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Based on the data you have and my input, return ONLY a JSON object with these predictions, no additional text or explanation.
+        Example format:
+{
+  "winProbabilities": {
+    "homeTeam": 45%,
+    "awayTeam": 35%,
+    "draw": 20%
+  },
+  "likelyScoreline": "2-1",
+  "likelyScorelinePrediction": "65%",
+  "overUnderPrediction": "over",
+  "overUnderPredictionProbability": "65%",
+  "bothTeamsToScore": true,
+  "bothTeamsToScoreProbability": "65%",
+  "totalGoals": 3,
+  "totalGoalsPrediction": "65%",
+  "commentary": "An comprehensive commentary on the match"
+},`},
+      {role: 'user', content: prompt}
+    ],
+  });
+
+  return chatResponse.choices?.[0]?.message?.content || '';
 }
