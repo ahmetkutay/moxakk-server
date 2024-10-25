@@ -11,6 +11,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.29.0",
     "@google/generative-ai": "^0.17.2",
+    "@huggingface/inference": "^2.8.1",
     "@mistralai/mistralai": "^1.1.0",
     "@types/cors": "^2.8.17",
     "axios": "^1.7.7",
@@ -24,6 +25,7 @@
     "http-proxy-middleware": "^3.0.3",
     "mongodb": "^6.9.0",
     "mongoose": "^8.7.1",
+    "node-fetch": "^3.3.2",
     "openai": "^4.67.2",
     "puppeteer": "^23.5.1"
   },

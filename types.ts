@@ -22,6 +22,8 @@ export interface WeatherData {
 
 export interface ParsedText {
     id: string;
+    homeTeam: string;
+    awayTeam: string;
     venue: string;
     unavailablePlayers: {
         home: string[];
