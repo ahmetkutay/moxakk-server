@@ -326,10 +326,6 @@ Example format:
     }
 
     const generatedText = data.choices[0].message.content;
-    console.log(
-      "-------------------------------- AI21 RESPONSE --------------------------------"
-    );
-    console.log(generatedText);
 
     try {
       return JSON.parse(generatedText);
