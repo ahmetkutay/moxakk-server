@@ -11,10 +11,10 @@ export function setupMiddleware(app: express.Application) {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "https://moxakk.com"],
+          scriptSrc: ["'self'", "https://moxakk.com", "chrome-extension://*"],
           styleSrc: ["'self'", "https://moxakk.com"],
           imgSrc: ["'self'", "https://moxakk.com"],
-          connectSrc: ["'self'", "https://moxakk.com"],
+          connectSrc: ["'self'", "https://moxakk.com", "chrome-extension://*"],
           fontSrc: ["'self'", "https://moxakk.com"],
           objectSrc: ["'none'"],
           mediaSrc: ["'self'", "https://moxakk.com"],
@@ -36,8 +36,11 @@ export function setupMiddleware(app: express.Application) {
 
   // CORS configuration for same-host setup
   const corsOptions = {
-    origin: "https://moxakk.com",
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: [
+      "https://moxakk.com",
+      "chrome-extension://*", // Allow all Chrome extensions
+    ],
+    methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
     maxAge: 600,
