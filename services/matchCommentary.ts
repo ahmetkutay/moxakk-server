@@ -25,7 +25,7 @@ export async function generateMatchCommentary(
       //getHuggingFaceResponse(prompt),
     ]);
 
-    return calculateAveragePrediction(responses);
+    return responses;
   } catch (error) {
     console.error("Error generating content:", error);
     throw error;

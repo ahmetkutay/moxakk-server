@@ -11,8 +11,7 @@ dotenv.config();
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY as string);
 const model: GenerativeModel = genAI.getGenerativeModel({
   model: "gemini-1.5-flash",
-  systemInstruction: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Base on the data you had and my givings. Return ONLY the JSON object with these predictions, no additional text or explanation.
-
+  systemInstruction: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores.
    Example format:
    {
      "winProbabilities": {
@@ -28,8 +27,6 @@ const model: GenerativeModel = genAI.getGenerativeModel({
      "bothTeamsToScoreProbability": 65,
      "totalGoals": 3,
      "totalGoalsPrediction": 65,
-     "halfTimeFullTimePrediction": "1/1",
-     "halfTimeFullTimePredictionProbability": 65,
      "commentary": "A comprehensive commentary on the match"
    }`,
 });
@@ -65,7 +62,7 @@ export async function getOpenAIResponse(prompt: string): Promise<string> {
     messages: [
       {
         role: "system",
-        content: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Base on the data you had and my givings. Return ONLY the JSON object with these predictions, no additional text or explanation.
+        content: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores.
 
 Example format:
 {
@@ -86,8 +83,6 @@ Example format:
   "bothTeamNotScoreProbability": "35%",
   "totalGoals": 3,
   "totalGoalsPrediction": "65%",
-  "halfTimeFullTimePrediction": "1/1",
-  "halfTimeFullTimePredictionProbability": "65%",
   "commentary": "An comprehensive commentary on the match"
 }`,
       },
@@ -107,7 +102,7 @@ export async function getCohereResponse(prompt: string): Promise<any> {
       },
       {
         role: "assistant",
-        content: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Based on the data you have and my input, return ONLY a JSON object with these predictions, no additional text or explanation.
+        content: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores
 
 Example format:
 {
@@ -143,7 +138,7 @@ export async function getAnthropicResponse(prompt: string): Promise<any> {
     model: "claude-3-haiku-20240307",
     max_tokens: 1024,
     messages: [{ role: "user", content: prompt }],
-    system: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Based on the data you have and my input, return ONLY a JSON object with these predictions, no additional text or explanation.
+    system: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores.
 
 Example format:
 {
@@ -164,8 +159,6 @@ Example format:
   "bothTeamNotScoreProbability": "35%",
   "totalGoals": 3,
   "totalGoalsPrediction": "65%",
-  "halfTimeFullTimePrediction": "1/1",
-  "halfTimeFullTimePredictionProbability": "65%",
   "commentary": "An comprehensive commentary on the match"
 }`,
   });
@@ -180,7 +173,7 @@ export async function getMistralResponse(prompt: string): Promise<any> {
     messages: [
       {
         role: "system",
-        content: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Based on the data you have and my input, return ONLY a JSON object with these predictions, no additional text or explanation.
+        content: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores.
         Example format:
 {
   "winProbabilities": {
@@ -200,8 +193,6 @@ export async function getMistralResponse(prompt: string): Promise<any> {
   "bothTeamNotScoreProbability": "35%",
   "totalGoals": 3,
   "totalGoalsPrediction": "65%",
-  "halfTimeFullTimePrediction": "half time/full time e.g. 1/1, 1/0, 0/2",
-  "halfTimeFullTimePredictionProbability": "65%",
   "commentary": "An comprehensive commentary on the match"
 },`,
       },
@@ -223,7 +214,7 @@ export async function getHuggingFaceResponse(prompt: string): Promise<string> {
 
   const response = await hf.textGeneration({
     model: "bert", // Use a free model that accepts 2000 characters
-    inputs: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Base on the data you had and my givings. Return ONLY the JSON object with these predictions, no additional text or explanation.
+    inputs: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Base on the data you had and my givings.
 
 Example format:
 {
@@ -262,7 +253,7 @@ ${prompt}`,
 }*/
 
 export async function getAI21Response(prompt: string): Promise<string> {
-  const systemMessage = `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Base on the data you had and my givings. Return ONLY the JSON object with these predictions, no additional text or explanation.
+  const systemMessage = `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores. Base on the data you had and my givings.
 
 Example format:
 {
@@ -283,8 +274,6 @@ Example format:
   "bothTeamNotScoreProbability": 35,
   "totalGoals": 3,
   "totalGoalsPrediction": 65,
-  "halfTimeFullTimePrediction": "1/1",
-  "halfTimeFullTimePredictionProbability": 65,
   "commentary": "A comprehensive commentary on the match"
 }`;
 
