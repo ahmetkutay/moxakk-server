@@ -5,7 +5,7 @@ import {
   getCohereResponse,
   getAnthropicResponse,
   getMistralResponse,
-  getAI21Response,
+  //getAI21Response,
   //getHuggingFaceResponse,
 } from "../utils/ai";
 
@@ -21,7 +21,7 @@ export async function generateMatchCommentary(
       getCohereResponse(prompt),
       getAnthropicResponse(prompt),
       getMistralResponse(prompt),
-      getAI21Response(prompt),
+      //getAI21Response(prompt),
       //getHuggingFaceResponse(prompt),
     ]);
 
@@ -102,89 +102,3 @@ ${betweenMatchResults}
   return prompt;
 }
 
-function calculateAveragePrediction(responses: string[]): Object {
-  //console.log(responses);
-  const parsedResponses = responses
-    .map((response) => {
-      try {
-        // Remove any markdown code block syntax and leading/trailing whitespace
-        const cleanedResponse = response
-          .replace(/```json\n|\n```|```/g, "")
-          .trim();
-
-        // Replace percentage values without quotes with quoted strings
-        const fixedResponse = cleanedResponse.replace(/: (\d+)%/g, ': "$1%"');
-
-        // Parse the JSON, handling percentage strings
-        return JSON.parse(fixedResponse, (key, value) => {
-          if (typeof value === "string" && value.endsWith("%")) {
-            return parseFloat(value);
-          }
-          return value;
-        });
-      } catch (error) {
-        console.error("Error parsing JSON:", error, "Response:", response);
-        return null;
-      }
-    })
-    .filter(Boolean);
-
-  const safeAverage = (selector: (r: any) => number) => {
-    const values = parsedResponses.map(selector).filter((v) => !isNaN(v));
-    return values.length ? average(values) : null;
-  };
-
-  const safeMode = (selector: (r: any) => any) => {
-    const values = parsedResponses
-      .map(selector)
-      .filter((v) => v !== undefined && v !== null);
-    return values.length ? mode(values) : null;
-  };
-
-  return {
-    winProbabilities: {
-      homeTeam: safeAverage((r) => r.winProbabilities?.homeTeam),
-      awayTeam: safeAverage((r) => r.winProbabilities?.awayTeam),
-      draw: safeAverage((r) => r.winProbabilities?.draw),
-    },
-    likelyScoreline: safeMode((r) => r.likelyScoreline),
-    likelyScorelinePrediction: safeAverage((r) => r.likelyScorelinePrediction),
-    overUnderPrediction: safeMode((r) => r.overUnderPrediction),
-    overUnderPredictionProbability: safeAverage(
-      (r) => r.overUnderPredictionProbability
-    ),
-    overUnderPredictionNot: safeMode((r) => r.overUnderPredictionNot),
-    overUnderPredictionNotProbability: safeAverage(
-      (r) => r.overUnderPredictionNotProbability
-    ),
-    bothTeamsToScore: safeMode((r) => r.bothTeamsToScore),
-    bothTeamsToScoreProbability: safeAverage(
-      (r) => r.bothTeamsToScoreProbability
-    ),
-    bothTeamNotScore: safeMode((r) => r.bothTeamNotScore),
-    bothTeamNotScoreProbability: safeAverage(
-      (r) => r.bothTeamNotScoreProbability
-    ),
-    totalGoals: safeAverage((r) => r.totalGoals),
-    totalGoalsPrediction: safeAverage((r) => r.totalGoalsPrediction),
-    halfTimeFullTimePrediction: safeMode((r) => r.halfTimeFullTimePrediction),
-    halfTimeFullTimePredictionProbability: safeAverage(
-      (r) => r.halfTimeFullTimePredictionProbability
-    ),
-    commentaries: parsedResponses.map((r) => r.commentary).filter(Boolean),
-  };
-}
-
-function average(numbers: number[]): number {
-  return numbers.reduce((a, b) => a + b, 0) / numbers.length;
-}
-
-function mode(array: any[]): any {
-  return array
-    .sort(
-      (a, b) =>
-        array.filter((v) => v === a).length -
-        array.filter((v) => v === b).length
-    )
-    .pop();
-}

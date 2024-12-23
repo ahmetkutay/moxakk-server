@@ -263,9 +263,9 @@ Example format:
     "draw": 20
   },
   "likelyScoreline": "1-2",
-  "likelyScorelinePrediction": 65,
+  "likelyScorelinePrediction": 15,
   "overUnderPrediction": "over",
-  "overUnderPredictionProbability": 65,
+  "overUnderPredictionProbability": 15,
   "overUnderPredictionNot": false,
   "overUnderPredictionNotProbability": 35,
   "bothTeamsToScore": true,
@@ -273,7 +273,7 @@ Example format:
   "bothTeamNotScore": false,
   "bothTeamNotScoreProbability": 35,
   "totalGoals": 3,
-  "totalGoalsPrediction": 65,
+  "totalGoalsPrediction": 15,
   "commentary": "A comprehensive commentary on the match"
 }`;
 
@@ -292,7 +292,7 @@ Example format:
     const response = await axios.post(
       `${ROOT_URL}chat/completions`,
       {
-        model: "jamba-instruct",
+        model: "jamba-1.5-mini",
         messages: historyList,
         max_tokens: 2048,
         temperature: 0.4,
