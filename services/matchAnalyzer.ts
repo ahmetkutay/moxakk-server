@@ -1,6 +1,6 @@
 import axios from "axios";
 import puppeteer from "puppeteer";
-import Match from "./MatchDataModel"; // Import the Match model
+import Match from "../model/MatchDataModel"; // Import the Match model
 
 interface MatchData {
   id: string;
@@ -212,17 +212,11 @@ async function getMatchDetails(
 
         const nextElement = teamTitleElement.nextElementSibling;
 
-        if (
-          nextElement &&
-          nextElement.textContent?.includes(allAvailableMessage)
-        ) {
+        if (nextElement?.textContent?.includes(allAvailableMessage)) {
           return [];
         }
 
-        if (
-          nextElement &&
-          nextElement.classList.contains("injured-banned__table")
-        ) {
+        if (nextElement?.classList.contains("injured-banned__table")) {
           const rows = nextElement.querySelectorAll(
             ".injured-banned__table__body__row"
           );

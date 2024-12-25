@@ -1,6 +1,9 @@
 # Use the official Node.js image as the base image
 FROM node:18-slim
 
+# Create a non-root user and group
+RUN groupadd -r nodeapp && useradd -r -g nodeapp nodeapp
+
 # Install necessary dependencies for Puppeteer to work with Chromium
 RUN apt-get update && apt-get install -y \
     wget \
@@ -49,13 +52,19 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies, including Puppeteer
-RUN npm install
+RUN npm install --ignore-scripts
 
 # Copy the rest of the application code
 COPY . .
 
 # Build the TypeScript files
 RUN npm run build
+
+# Set ownership of the application files to the non-root user
+RUN chown -R nodeapp:nodeapp /app
+
+# Switch to non-root user
+USER nodeapp
 
 # Ensure Puppeteer uses the installed Chromium in the container
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true

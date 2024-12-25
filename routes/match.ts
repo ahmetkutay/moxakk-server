@@ -1,30 +1,31 @@
 import express from "express";
-import { verifyToken } from "../middleware/auth";
 import { generateMatchCommentary } from "../services/matchCommentary";
 import { ParsedText } from "../types";
-import { analyzeFootballMatch } from "../matchAnalyzer";
+import { analyzeFootballMatch } from "../services/matchAnalyzer";
 
 const router = express.Router();
 
 router.post("/get-match", async (req, res) => {
   try {
-    const result = await analyzeFootballMatch(
-      req.body.homeTeam,
-      req.body.awayTeam
-    );
+    const { homeTeam, awayTeam } = req.body;
+    if (!homeTeam || !awayTeam) {
+      return res.status(400).json({
+        error: "Missing required fields: homeTeam and awayTeam are required"
+      });
+    }
+
+    const result = await analyzeFootballMatch(homeTeam, awayTeam);
     const parsedText: ParsedText = result;
-    console.log(parsedText);
+    
     const content = await generateMatchCommentary(parsedText);
-    res.send(content);
+    
+    return res.json({ success: true, content });
   } catch (error) {
     console.error("Error in /get-match:", error);
-    res
-      .status(500)
-      .send(
-        `Error generating content: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error"
+    });
   }
 });
 

@@ -5,8 +5,6 @@ import {
   getCohereResponse,
   getAnthropicResponse,
   getMistralResponse,
-  //getAI21Response,
-  //getHuggingFaceResponse,
 } from "../utils/ai";
 
 export async function generateMatchCommentary(
@@ -21,8 +19,6 @@ export async function generateMatchCommentary(
       getCohereResponse(prompt),
       getAnthropicResponse(prompt),
       getMistralResponse(prompt),
-      //getAI21Response(prompt),
-      //getHuggingFaceResponse(prompt),
     ]);
 
     return responses;

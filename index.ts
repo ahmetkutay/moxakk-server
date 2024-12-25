@@ -1,8 +1,8 @@
 import express from 'express';
 import dotenv from 'dotenv';
-import { setupMiddleware } from './config';
+import { setupMiddleware } from './config/config';
 import matchRoutes from './routes/match';
-import connectDB from './db';
+import connectDB from './config/db';
 dotenv.config();
 
 const app = express();

@@ -5,7 +5,6 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 
 export function setupMiddleware(app: express.Application) {
-  // Enhanced Helmet configuration
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -34,11 +33,10 @@ export function setupMiddleware(app: express.Application) {
     })
   );
 
-  // CORS configuration for same-host setup
   const corsOptions = {
     origin: [
       "https://moxakk.com",
-      "chrome-extension://*", // Allow all Chrome extensions
+      "chrome-extension://*",
     ],
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -47,10 +45,8 @@ export function setupMiddleware(app: express.Application) {
   };
   app.use(cors(corsOptions));
 
-  // Parse JSON with size limit
   app.use(express.json({ limit: "1mb" }));
 
-  // Rate limiting
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 100,
@@ -59,12 +55,10 @@ export function setupMiddleware(app: express.Application) {
   });
   app.use(limiter);
 
-  // Logging middleware (consider using a proper logging library in production)
   app.use((req, res, next) => {
     next();
   });
-
-  // Handle preflight requests
+  
   app.options("*", cors(corsOptions));
 
   // Add security headers
