@@ -1,6 +1,6 @@
 import axios from "axios";
 import puppeteer from "puppeteer";
-import Match from "../model/MatchDataModel"; // Import the Match model
+import { pool } from "../../config/db";
 
 interface MatchData {
   id: string;
@@ -43,9 +43,34 @@ export async function analyzeFootballMatch(
   const matchInput = `${homeTeam}-${awayTeam}`;
 
   // Check if the match data already exists in the database
-  const existingMatch = await Match.findOne({ id: matchInput });
-  if (existingMatch) {
-    return existingMatch.toObject() as unknown as MatchData; // Convert Mongoose document to plain JavaScript object
+  const existingMatch = await pool.query(
+    'SELECT * FROM match_data WHERE id = $1',
+    [matchInput]
+  );
+  
+  if (existingMatch.rows.length > 0) {
+    return {
+      id: existingMatch.rows[0].id,
+      matchInput: existingMatch.rows[0].match_input,
+      homeTeam,
+      awayTeam,
+      venue: existingMatch.rows[0].venue,
+      unavailablePlayers: {
+        home: existingMatch.rows[0].unavailable_players_home,
+        away: existingMatch.rows[0].unavailable_players_away
+      },
+      recentMatches: {
+        home: existingMatch.rows[0].recent_matches_home,
+        away: existingMatch.rows[0].recent_matches_away,
+        between: existingMatch.rows[0].recent_matches_between
+      },
+      weather: {
+        temperature: existingMatch.rows[0].weather_temperature,
+        condition: existingMatch.rows[0].weather_condition,
+        humidity: existingMatch.rows[0].weather_humidity,
+        windSpeed: existingMatch.rows[0].weather_wind_speed
+      }
+    };
   }
 
   // If not found, proceed with scraping
@@ -69,12 +94,41 @@ export async function analyzeFootballMatch(
     weather: weatherData,
     recentMatches: h2hData.recentMatches || { home: [], away: [], between: [] },
   };
-
-  // Save to MongoDB
-  await Match.findOneAndUpdate(
-    { id: matchData.id },
-    matchData,
-    { upsert: true, new: true } // Create a new document if it doesn't exist
+  // Save to PostgreSQL
+  
+  await pool.query(
+    `INSERT INTO match_data (
+      id, match_input, venue, 
+      unavailable_players_home, unavailable_players_away,
+      recent_matches_home, recent_matches_away, recent_matches_between,
+      weather_temperature, weather_condition, weather_humidity, weather_wind_speed
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    ON CONFLICT (id) DO UPDATE SET
+      match_input = EXCLUDED.match_input,
+      venue = EXCLUDED.venue,
+      unavailable_players_home = EXCLUDED.unavailable_players_home,
+      unavailable_players_away = EXCLUDED.unavailable_players_away,
+      recent_matches_home = EXCLUDED.recent_matches_home,
+      recent_matches_away = EXCLUDED.recent_matches_away,
+      recent_matches_between = EXCLUDED.recent_matches_between,
+      weather_temperature = EXCLUDED.weather_temperature,
+      weather_condition = EXCLUDED.weather_condition,
+      weather_humidity = EXCLUDED.weather_humidity,
+      weather_wind_speed = EXCLUDED.weather_wind_speed`,
+    [
+      matchData.id,
+      matchData.matchInput,
+      matchData.venue,
+      matchData.unavailablePlayers.home,
+      matchData.unavailablePlayers.away,
+      matchData.recentMatches.home,
+      matchData.recentMatches.away,
+      matchData.recentMatches.between,
+      matchData.weather.temperature,
+      matchData.weather.condition,
+      matchData.weather.humidity,
+      matchData.weather.windSpeed
+    ]
   );
 
   return matchData;

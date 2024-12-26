@@ -1,4 +1,3 @@
-import * as http from "http";
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
@@ -10,10 +9,10 @@ export function setupMiddleware(app: express.Application) {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "https://moxakk.com", "chrome-extension://*"],
+          scriptSrc: ["'self'", "https://moxakk.com"],
           styleSrc: ["'self'", "https://moxakk.com"],
           imgSrc: ["'self'", "https://moxakk.com"],
-          connectSrc: ["'self'", "https://moxakk.com", "chrome-extension://*"],
+          connectSrc: ["'self'", "https://moxakk.com"],
           fontSrc: ["'self'", "https://moxakk.com"],
           objectSrc: ["'none'"],
           mediaSrc: ["'self'", "https://moxakk.com"],
@@ -36,7 +35,6 @@ export function setupMiddleware(app: express.Application) {
   const corsOptions = {
     origin: [
       "https://moxakk.com",
-      "chrome-extension://*",
     ],
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"],

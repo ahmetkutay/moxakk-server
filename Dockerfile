@@ -1,16 +1,15 @@
 # Use the official Node.js image as the base image
 FROM node:18-slim
 
-# Create a non-root user and group
-RUN groupadd -r nodeapp && useradd -r -g nodeapp nodeapp
-
-# Install necessary dependencies for Puppeteer to work with Chromium
-RUN apt-get update && apt-get install -y \
+# Create a non-root user and group, install dependencies, and clean up in a single layer
+RUN groupadd -r nodeapp && useradd -r -g nodeapp nodeapp && \
+    apt-get update && apt-get install -y \
     wget \
     gnupg \
     ca-certificates \
     fonts-liberation \
     libasound2 \
+    libatk-bridge2.0-0 \
     libatk1.0-0 \
     libc6 \
     libcairo2 \
@@ -18,12 +17,12 @@ RUN apt-get update && apt-get install -y \
     libdbus-1-3 \
     libexpat1 \
     libfontconfig1 \
+    libgbm1 \
     libgcc1 \
-    libgconf-2-4 \
-    libgdk-pixbuf2.0-0 \
     libglib2.0-0 \
     libgtk-3-0 \
     libnspr4 \
+    libnss3 \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
     libstdc++6 \
@@ -40,35 +39,43 @@ RUN apt-get update && apt-get install -y \
     libxrender1 \
     libxss1 \
     libxtst6 \
+    lsb-release \
+    xdg-utils \
     chromium \
-    --no-install-recommends \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    --no-install-recommends && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# Copy package files and install dependencies in a single layer
 COPY package*.json ./
+RUN npm install --ignore-scripts && \
+    npm cache clean --force
 
-# Install dependencies, including Puppeteer
-RUN npm install --ignore-scripts
+# Copy specific project files
+COPY tsconfig.json ./
+COPY src/ ./src/
+COPY config/ ./config/
+COPY services/ ./services/
+COPY routes/ ./routes/
+COPY utils/ ./utils/
+COPY types.ts ./
+COPY model/ ./model/
+COPY .dockerignore ./
+COPY sonar-project.properties ./
 
-# Copy the rest of the application code
-COPY . .
-
-# Build the TypeScript files
-RUN npm run build
-
-# Set ownership of the application files to the non-root user
-RUN chown -R nodeapp:nodeapp /app
+# Build the TypeScript files and set permissions in a single layer
+RUN npm run build && \
+    chown -R nodeapp:nodeapp /app
 
 # Switch to non-root user
 USER nodeapp
 
-# Ensure Puppeteer uses the installed Chromium in the container
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+# Set environment variables
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Expose the port the app runs on
 EXPOSE 8080

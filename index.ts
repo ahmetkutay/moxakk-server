@@ -2,7 +2,9 @@ import express from 'express';
 import dotenv from 'dotenv';
 import { setupMiddleware } from './config/config';
 import matchRoutes from './routes/match';
+import basketballRoutes from './routes/basketball';
 import connectDB from './config/db';
+
 dotenv.config();
 
 const app = express();
@@ -13,6 +15,7 @@ setupMiddleware(app);
 connectDB();
 
 app.use('/api', matchRoutes);
+app.use('/api', basketballRoutes);
 
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error(err.stack);

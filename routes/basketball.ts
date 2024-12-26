@@ -1,11 +1,11 @@
 import express from "express";
-import { generateMatchCommentary } from "../services/football/matchCommentary";
-import { MatchParsedText } from "../types";
-import { analyzeFootballMatch } from "../services/football/matchAnalyzer";
+import { generateBasketballCommentary } from "../services/basketball/basketballCommentary";
+import { BasketballParsedText } from "../types";
+import { analyzeBasketballMatch } from "../services/basketball/basketballAnalyzer";
 
 const router = express.Router();
 
-router.post("/get-match", async (req, res) => {
+router.post("/get-basketball", async (req, res) => {
   try {
     const { homeTeam, awayTeam } = req.body;
     if (!homeTeam || !awayTeam) {
@@ -14,14 +14,14 @@ router.post("/get-match", async (req, res) => {
       });
     }
 
-    const result = await analyzeFootballMatch(homeTeam, awayTeam);
-    const parsedText: MatchParsedText = result;
+    const result = await analyzeBasketballMatch(homeTeam, awayTeam);
+    const parsedText: BasketballParsedText = result;
     
-    const content = await generateMatchCommentary(parsedText);
+    const content = await generateBasketballCommentary(parsedText);
     
     return res.json({ success: true, content });
   } catch (error) {
-    console.error("Error in /get-match:", error);
+    console.error("Error in /get-basketball:", error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Unknown error"

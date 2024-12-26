@@ -20,7 +20,7 @@ export interface WeatherData {
     windSpeed: number;
 }
 
-export interface ParsedText {
+export interface MatchParsedText {
     id: string;
     homeTeam: string;
     awayTeam: string;
@@ -35,4 +35,17 @@ export interface ParsedText {
         between: string[];
     };
     weather: WeatherData;
+}
+
+export interface BasketballParsedText {
+    id: string;
+    homeTeam: string;
+    awayTeam: string;
+    venue: string;
+    weather: WeatherData;
+    recentMatches: {
+        home: string[];
+        away: string[];
+        between: string[];
+    };
 }

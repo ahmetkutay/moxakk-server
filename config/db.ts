@@ -1,17 +1,29 @@
-import mongoose from "mongoose";
+import { Pool } from 'pg';
 import dotenv from "dotenv";
 
 dotenv.config(); // Load environment variables from .env file
 
-// Connect to MongoDB
+// Create a new PostgreSQL connection pool
+const pool = new Pool({
+  user: process.env.POSTGRES_USER,
+  password: process.env.POSTGRES_PASSWORD,
+  host: process.env.POSTGRES_HOST,
+  port: parseInt(process.env.POSTGRES_PORT || '5432'),
+  database: process.env.POSTGRES_DB,
+});
+
+// Connect to PostgreSQL
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI as string);
-    console.log("MongoDB connected successfully");
+    const client = await pool.connect();
+    await client.query('SELECT NOW()'); // Simple query to test connection
+    client.release();
+    console.log("PostgreSQL connected successfully");
   } catch (error) {
-    console.error("MongoDB connection error:", error);
+    console.error("PostgreSQL connection error:", error);
     process.exit(1); // Exit the process with failure
   }
 };
 
 export default connectDB;
+export { pool }; // Export pool for use in other files
