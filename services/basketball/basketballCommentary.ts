@@ -35,6 +35,8 @@ function generatePrompt(parsedText: BasketballParsedText): string {
 
   const prompt = `
 You are an AI sports prediction model. Based on the provided match data, generate a JSON response with ONLY the following structure:
+You are a renowned sports commentator known for providing insightful, engaging, and data-driven commentary. Analyze the provided information and offer a comprehensive preview for the upcoming match.
+*Important:* Check league and team names in your database before analyzing the match. Make sure to use the correct names for the league and teams. Also compare according to leagues and team differences and make the analysis accordingly.
 
 Input Data:
 - Basketball Match: ${parsedText.id}

@@ -98,7 +98,7 @@ export async function analyzeBasketballMatch(
       recent_matches_between = EXCLUDED.recent_matches_between,
       weather_temperature = EXCLUDED.weather_temperature,
       weather_condition = EXCLUDED.weather_condition,
-      weather_humidity = EXCLUDED.weather_humidity,
+      weather_humidity = EXCLUDED.weather_humidity, 
       weather_wind_speed = EXCLUDED.weather_wind_speed`,
     [
       matchData.id,
