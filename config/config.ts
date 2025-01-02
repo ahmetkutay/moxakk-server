@@ -3,67 +3,57 @@ import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 
+const ALLOWED_ORIGINS = ['https://moxakk.com']
+const MAX_REQUEST_SIZE = '1mb'
+
 export function setupMiddleware(app: express.Application) {
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "https://moxakk.com"],
-          styleSrc: ["'self'", "https://moxakk.com"],
-          imgSrc: ["'self'", "https://moxakk.com"],
-          connectSrc: ["'self'", "https://moxakk.com"],
-          fontSrc: ["'self'", "https://moxakk.com"],
-          objectSrc: ["'none'"],
-          mediaSrc: ["'self'", "https://moxakk.com"],
-          frameSrc: ["'none'"],
-        },
-      },
-      referrerPolicy: {
-        policy: "strict-origin-when-cross-origin",
-      },
-      hsts: {
-        maxAge: 31536000,
-        includeSubDomains: true,
-        preload: true,
-      },
-      noSniff: true,
-      xssFilter: true,
-    })
-  );
+  // Security headers
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", ...ALLOWED_ORIGINS],
+        styleSrc: ["'self'", ...ALLOWED_ORIGINS],
+        imgSrc: ["'self'", ...ALLOWED_ORIGINS],
+        connectSrc: ["'self'", ...ALLOWED_ORIGINS],
+        fontSrc: ["'self'", ...ALLOWED_ORIGINS],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'", ...ALLOWED_ORIGINS],
+        frameSrc: ["'none'"],
+      }
+    },
+    crossOriginEmbedderPolicy: true,
+    crossOriginOpenerPolicy: true,
+    crossOriginResourcePolicy: { policy: "same-site" },
+    dnsPrefetchControl: true,
+    frameguard: { action: "deny" },
+    hidePoweredBy: true,
+    hsts: true,
+    ieNoOpen: true,
+    noSniff: true,
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    xssFilter: true
+  }))
 
-  const corsOptions = {
-    origin: [
-      "https://moxakk.com",
-    ],
-    methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-    maxAge: 600,
-  };
-  app.use(cors(corsOptions));
-
-  app.use(express.json({ limit: "1mb" }));
-
-  const limiter = rateLimit({
+  // Rate limiting
+  app.use(rateLimit({
     windowMs: 15 * 60 * 1000,
-    limit: 100,
+    max: 100,
     standardHeaders: true,
     legacyHeaders: false,
-  });
-  app.use(limiter);
+    message: 'Too many requests from this IP, please try again later.'
+  }))
 
-  app.use((req, res, next) => {
-    next();
-  });
-  
-  app.options("*", cors(corsOptions));
+  // CORS
+  app.use(cors({
+    origin: ALLOWED_ORIGINS,
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    maxAge: 600
+  }))
 
-  // Add security headers
-  app.use((req, res, next) => {
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("X-Frame-Options", "SAMEORIGIN");
-    res.setHeader("X-XSS-Protection", "1; mode=block");
-    next();
-  });
+  // Body parsing
+  app.use(express.json({ limit: MAX_REQUEST_SIZE }))
+  app.use(express.urlencoded({ extended: true, limit: MAX_REQUEST_SIZE }))
 }

@@ -3,7 +3,7 @@ FROM node:18-slim
 
 # Create a non-root user and group, install dependencies, and clean up in a single layer
 RUN groupadd -r nodeapp && useradd -r -g nodeapp nodeapp && \
-    apt-get update && apt-get install -y \
+    apt-get update && apt-get install -y build-essential \
     wget \
     gnupg \
     ca-certificates \

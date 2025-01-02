@@ -1,32 +1,39 @@
 import express from "express";
-import { generateMatchCommentary } from "../services/football/matchCommentary";
-import { MatchParsedText } from "../types";
+import { z } from "zod";
+import { createMatchRoute } from "./base-route";
+import { FootballCommentaryService } from "../services/football/matchCommentary";
+import { BasketballCommentaryService } from "../services/basketball/basketballCommentary";
 import { analyzeFootballMatch } from "../services/football/matchAnalyzer";
+import { analyzeBasketballMatch } from "../services/basketball/basketballAnalyzer";
+import { FootballMatchData, BasketballMatchData } from "../types/matches";
 
 const router = express.Router();
 
-router.post("/get-match", async (req, res) => {
-  try {
-    const { homeTeam, awayTeam } = req.body;
-    if (!homeTeam || !awayTeam) {
-      return res.status(400).json({
-        error: "Missing required fields: homeTeam and awayTeam are required"
-      });
-    }
-
-    const result = await analyzeFootballMatch(homeTeam, awayTeam);
-    const parsedText: MatchParsedText = result;
-    
-    const content = await generateMatchCommentary(parsedText);
-    
-    return res.json({ success: true, content });
-  } catch (error) {
-    console.error("Error in /get-match:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error"
-    });
-  }
+const matchRequestSchema = z.object({
+  homeTeam: z.string().min(1, "Home team is required"),
+  awayTeam: z.string().min(1, "Away team is required"),
 });
+
+type MatchInput = {
+  homeTeam: string
+  awayTeam: string
+}
+
+const footballCommentary = new FootballCommentaryService()
+const basketballCommentary = new BasketballCommentaryService()
+
+// Football route
+router.post("/get-match", createMatchRoute<MatchInput, FootballMatchData>({
+  inputSchema: matchRequestSchema,
+  analyzer: analyzeFootballMatch,
+  commentaryGenerator: footballCommentary.generateCommentary.bind(footballCommentary)
+}));
+
+// Basketball route
+router.post("/get-basketball", createMatchRoute<MatchInput, BasketballMatchData>({
+  inputSchema: matchRequestSchema,
+  analyzer: analyzeBasketballMatch,
+  commentaryGenerator: basketballCommentary.generateCommentary.bind(basketballCommentary)
+}));
 
 export default router;

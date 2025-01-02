@@ -1,7 +1,6 @@
-import axios from "axios";
 import puppeteer from "puppeteer";
 import { pool } from "../../config/db";
-
+import { WeatherService } from "../weather/WeatherService";
 interface MatchData {
   id: string;
   matchInput: string;
@@ -47,7 +46,9 @@ export async function analyzeFootballMatch(
     'SELECT * FROM match_data WHERE id = $1',
     [matchInput]
   );
-  
+
+  const weatherService = WeatherService.getInstance()
+
   if (existingMatch.rows.length > 0) {
     return {
       id: existingMatch.rows[0].id,
@@ -78,8 +79,8 @@ export async function analyzeFootballMatch(
   const matchDetails = await getMatchDetails(matchId, homeTeam, awayTeam);
   const h2hData = await getH2HData(matchId, homeTeam, awayTeam);
   const weatherData = matchDetails.venue
-    ? await getWeatherData(matchDetails.venue)
-    : createDefaultWeatherData();
+    ? await weatherService.getWeatherData(matchDetails.venue)
+    : weatherService.createDefaultWeatherData();
 
   const matchData: MatchData = {
     id: matchInput,
@@ -247,7 +248,7 @@ async function getMatchDetails(
     await page.goto(detailsUrl, { waitUntil: "networkidle0" });
     const venue = await page.$eval(
       ".match-detail__match-info__list__item:last-child .match-detail__match-info__list__item__text",
-      (el) => el.textContent?.trim() || ""
+      (el) => el.textContent?.trim() ?? ""
     );
 
     await page.goto(unavailablePlayersUrl, { waitUntil: "networkidle0" });
@@ -418,45 +419,5 @@ async function getH2HData(
     throw error;
   } finally {
     await browser.close();
-  }
-}
-
-async function getWeatherData(venue: string): Promise<WeatherData> {
-  try {
-    const geocodeUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-      venue
-    )}&format=json&limit=1`;
-    const geocodeResponse = await axios.get(geocodeUrl, {
-      headers: { "User-Agent": "MoxakkMatchAnalyzer/1.0" },
-    });
-
-    if (geocodeResponse.data.length === 0) {
-      console.error("Unable to geocode venue:", venue);
-      return createDefaultWeatherData();
-    }
-
-    const location = geocodeResponse.data[0];
-
-    const lat = location.lat;
-    const lon = location.lon;
-
-    if (!lat || !lon) {
-      console.error("Unable to determine coordinates for venue:", venue);
-      return createDefaultWeatherData();
-    }
-
-    const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.OPENWEATHER_API_KEY}&units=metric`;
-    const weatherResponse = await axios.get(weatherUrl);
-    const data = weatherResponse.data;
-
-    return {
-      temperature: data.main.temp,
-      condition: data.weather[0].description,
-      humidity: data.main.humidity,
-      windSpeed: data.wind.speed,
-    };
-  } catch (error) {
-    console.error("Error fetching weather data:", error);
-    return createDefaultWeatherData();
   }
 }

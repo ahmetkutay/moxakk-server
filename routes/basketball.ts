@@ -1,6 +1,6 @@
 import express from "express";
 import { generateBasketballCommentary } from "../services/basketball/basketballCommentary";
-import { BasketballParsedText } from "../types";
+import { BasketballMatchData } from "../types/matches";
 import { analyzeBasketballMatch } from "../services/basketball/basketballAnalyzer";
 
 const router = express.Router();
@@ -15,7 +15,7 @@ router.post("/get-basketball", async (req, res) => {
     }
 
     const result = await analyzeBasketballMatch(homeTeam, awayTeam);
-    const parsedText: BasketballParsedText = result;
+    const parsedText: BasketballMatchData = result;
     
     const content = await generateBasketballCommentary(parsedText);
     
