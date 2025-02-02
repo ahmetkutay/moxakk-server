@@ -59,7 +59,6 @@ export interface H2HData {
 
 export abstract class BaseScraper {
     protected browser: Browser | null = null;
-
     constructor(
         protected config: ScrapingConfig,
     ) {

@@ -29,40 +29,6 @@ export class MatchRepository {
     return MatchRepository.instance
   }
 
-  async getFootballMatch(id: string): Promise<FootballMatchData | null> {
-    const result = await pool.query(
-      'SELECT * FROM match_data WHERE id = $1',
-      [id]
-    )
-    
-    if (result.rows.length === 0) return null
-    
-    const row = matchRowSchema.parse(result.rows[0])
-    
-    return {
-      id: row.id,
-      matchInput: row.match_input,
-      homeTeam: row.match_input.split('-')[0],
-      awayTeam: row.match_input.split('-')[1],
-      venue: row.venue,
-      unavailablePlayers: {
-        home: row.unavailable_players_home || [],
-        away: row.unavailable_players_away || []
-      },
-      recentMatches: {
-        home: row.recent_matches_home,
-        away: row.recent_matches_away,
-        between: row.recent_matches_between
-      },
-      weather: {
-        temperature: row.weather_temperature,
-        condition: row.weather_condition,
-        humidity: row.weather_humidity,
-        windSpeed: row.weather_wind_speed
-      }
-    }
-  }
-
   async saveFootballMatch(data: FootballMatchData) {
     const query = `
       INSERT INTO match_data (
