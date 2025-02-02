@@ -14,13 +14,57 @@ export interface BaseMatchData {
   }
 }
 
+class PlayerPosition {
+    number: number | undefined
+    name: string | undefined
+    position: {
+      x: number
+      y: number
+    } | undefined
+}
+
 export interface FootballMatchData extends BaseMatchData {
   unavailablePlayers: {
     home: string[]
     away: string[]
-  }
+  },
+  formations?: {
+    home: string
+    away: string
+  },
+    lineups?: {
+        home: {
+        players: PlayerPosition[]
+        },
+        away: {
+        players: PlayerPosition[]
+        }
+    },
+    standings: StandingsResult
+}
+interface TeamStandingData {
+    position: number;
+    team: string;
+    played: number;
+    won: number;
+    drawn: number;
+    lost: number;
+    goalsFor: number;
+    goalsAgainst: number;
+    goalDifference: number;
+    points: number;
 }
 
+interface TeamStanding {
+    overall: TeamStandingData;
+    homeForm: TeamStandingData;
+    awayForm: TeamStandingData;
+}
+
+interface StandingsResult {
+    home: TeamStanding;
+    away: TeamStanding;
+}
 export type BasketballMatchData = BaseMatchData
 
 export const matchResponseSchema = z.object({
