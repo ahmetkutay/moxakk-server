@@ -222,7 +222,7 @@ export async function analyzeFootballMatch(
         ? await weatherService.getWeatherData(matchDetails.venue)
         : weatherService.createDefaultWeatherData();
     const teamLineups = await getTeamLineups(matchId);
-    const teamStands = await getCurrentStandings(matchId, homeTeam, awayTeam);
+    const teamStands = await getCurrentStandings(matchId, homeTeam, awayTeam) || null;
 
     const matchData: MatchData = {
         id: matchInput,
@@ -312,70 +312,70 @@ export async function analyzeFootballMatch(
             matchData.teamLineups.away.formation,
 
             // Home team - Overall standings
-            teamStands.home.overall.position,
-            teamStands.home.overall.played,
-            teamStands.home.overall.won,
-            teamStands.home.overall.drawn,
-            teamStands.home.overall.lost,
-            teamStands.home.overall.goalsFor,
-            teamStands.home.overall.goalsAgainst,
-            teamStands.home.overall.goalDifference,
-            teamStands.home.overall.points,
+            teamStands.home.overall.position ?? "",
+            teamStands.home.overall.played ?? "",
+            teamStands.home.overall.won ?? "",
+            teamStands.home.overall.drawn ?? "",
+            teamStands.home.overall.lost ?? "",
+            teamStands.home.overall.goalsFor ?? "",
+            teamStands.home.overall.goalsAgainst ?? "",
+            teamStands.home.overall.goalDifference ?? "",
+            teamStands.home.overall.points ?? "",
 
             // Home team - Home form
-            teamStands.home.homeForm.position,
-            teamStands.home.homeForm.played,
-            teamStands.home.homeForm.won,
-            teamStands.home.homeForm.drawn,
-            teamStands.home.homeForm.lost,
-            teamStands.home.homeForm.goalsFor,
-            teamStands.home.homeForm.goalsAgainst,
-            teamStands.home.homeForm.goalDifference,
-            teamStands.home.homeForm.points,
+            teamStands.home.homeForm.position ?? "",
+            teamStands.home.homeForm.played ?? "",
+            teamStands.home.homeForm.won ?? "",
+            teamStands.home.homeForm.drawn ?? "",
+            teamStands.home.homeForm.lost ?? "",
+            teamStands.home.homeForm.goalsFor ?? "",
+            teamStands.home.homeForm.goalsAgainst ?? "",
+            teamStands.home.homeForm.goalDifference ?? "",
+            teamStands.home.homeForm.points ?? "",
 
             // Home team - Away form
-            teamStands.home.awayForm.position,
-            teamStands.home.awayForm.played,
-            teamStands.home.awayForm.won,
-            teamStands.home.awayForm.drawn,
-            teamStands.home.awayForm.lost,
-            teamStands.home.awayForm.goalsFor,
-            teamStands.home.awayForm.goalsAgainst,
-            teamStands.home.awayForm.goalDifference,
-            teamStands.home.awayForm.points,
+            teamStands.home.awayForm.position ?? "",
+            teamStands.home.awayForm.played ?? "",
+            teamStands.home.awayForm.won ?? "",
+            teamStands.home.awayForm.drawn ?? "",
+            teamStands.home.awayForm.lost ?? "",
+            teamStands.home.awayForm.goalsFor ?? "",
+            teamStands.home.awayForm.goalsAgainst ?? "",
+            teamStands.home.awayForm.goalDifference ?? "",
+            teamStands.home.awayForm.points ?? "",
 
             // Away team - Overall standings
-            teamStands.away.overall.position,
-            teamStands.away.overall.played,
-            teamStands.away.overall.won,
-            teamStands.away.overall.drawn,
-            teamStands.away.overall.lost,
-            teamStands.away.overall.goalsFor,
-            teamStands.away.overall.goalsAgainst,
-            teamStands.away.overall.goalDifference,
-            teamStands.away.overall.points,
+            teamStands.away.overall.position ?? "",
+            teamStands.away.overall.played ?? "",
+            teamStands.away.overall.won ?? "",
+            teamStands.away.overall.drawn ?? "",
+            teamStands.away.overall.lost ?? "",
+            teamStands.away.overall.goalsFor ?? "",
+            teamStands.away.overall.goalsAgainst ?? "",
+            teamStands.away.overall.goalDifference ?? "",
+            teamStands.away.overall.points ?? "",
 
             // Away team - Home form
-            teamStands.away.homeForm.position,
-            teamStands.away.homeForm.played,
-            teamStands.away.homeForm.won,
-            teamStands.away.homeForm.drawn,
-            teamStands.away.homeForm.lost,
-            teamStands.away.homeForm.goalsFor,
-            teamStands.away.homeForm.goalsAgainst,
-            teamStands.away.homeForm.goalDifference,
-            teamStands.away.homeForm.points,
+            teamStands.away.homeForm.position ?? "",
+            teamStands.away.homeForm.played ?? "",
+            teamStands.away.homeForm.won ?? "",
+            teamStands.away.homeForm.drawn ?? "",
+            teamStands.away.homeForm.lost ?? "",
+            teamStands.away.homeForm.goalsFor ?? "",
+            teamStands.away.homeForm.goalsAgainst ?? "",
+            teamStands.away.homeForm.goalDifference ?? "",
+            teamStands.away.homeForm.points ?? "",
 
             // Away team - Away form
-            teamStands.away.awayForm.position,
-            teamStands.away.awayForm.played,
-            teamStands.away.awayForm.won,
-            teamStands.away.awayForm.drawn,
-            teamStands.away.awayForm.lost,
-            teamStands.away.awayForm.goalsFor,
-            teamStands.away.awayForm.goalsAgainst,
-            teamStands.away.awayForm.goalDifference,
-            teamStands.away.awayForm.points
+            teamStands.away.awayForm.position ?? "",
+            teamStands.away.awayForm.played ?? "",
+            teamStands.away.awayForm.won ?? "",
+            teamStands.away.awayForm.drawn ?? "",
+            teamStands.away.awayForm.lost ?? "",
+            teamStands.away.awayForm.goalsFor ?? "",
+            teamStands.away.awayForm.goalsAgainst ?? "",
+            teamStands.away.awayForm.goalDifference ?? "",
+            teamStands.away.awayForm.points ?? ""
         ]
     );
 
@@ -901,12 +901,9 @@ async function getCurrentStandings(
             const bestHomeMatch = homeScores.sort((a, b) => b.score - a.score)[0];
             const bestAwayMatch = awayScores.sort((a, b) => b.score - a.score)[0];
 
-            logger.info('Best matches found:', {
-                home: bestHomeMatch.team,
-                homeScore: bestHomeMatch.score,
-                away: bestAwayMatch.team,
-                awayScore: bestAwayMatch.score
-            });
+            if( (!bestHomeMatch) && (!bestAwayMatch)) {
+                return {}
+            }
 
             return {
                 home: bestHomeMatch.standing,
