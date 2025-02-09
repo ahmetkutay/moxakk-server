@@ -136,44 +136,45 @@ ${this.getPromptRequirements()}`
 
     private getPromptRequirements(): string {
         return `
-Analyze all provided data and respond with a single JSON object in exactly this format:
-{
-    "homeTeamWinPercentage": number,     // Probability of home team victory (0-100)
-    "awayTeamWinPercentage": number,     // Probability of away team victory (0-100)
-    "drawPercentage": number,            // Probability of a draw (0-100)
-    "over2_5Percentage": number,         // Likelihood of over 2.5 goals
-    "bothTeamScorePercentage": number,   // Probability of both teams scoring
-    "halfTimeWinner": "home" | "away" | "draw",  // Predicted half-time result
-    "halfTimeWinnerPercentage": number,  // Confidence in half-time prediction
-    "predictedScore": {
-        "home": number,                  // Predicted goals for home team
-        "away": number                   // Predicted goals for away team
-    },
-    "predictionConfidence": number,      // Overall confidence in prediction
-    "briefComment": string              // Analytical comment explaining key factors and prediction rationale
-}
+        Simulate the match based on the data provided and generate a detailed predictive analysis.
+        Analyze all provided data and respond with a single JSON object in exactly this format:
+        {
+            "homeTeamWinPercentage": number,     // Probability of home team victory (0-100)
+            "awayTeamWinPercentage": number,     // Probability of away team victory (0-100)
+            "drawPercentage": number,            // Probability of a draw (0-100)
+            "over2_5Percentage": number,         // Likelihood of over 2.5 goals
+            "bothTeamScorePercentage": number,   // Probability of both teams scoring
+            "halfTimeWinner": "home" | "away" | "draw",  // Predicted half-time result
+            "halfTimeWinnerPercentage": number,  // Confidence in half-time prediction
+            "predictedScore": {
+                "home": number,                  // Predicted goals for home team
+                "away": number                   // Predicted goals for away team
+            },
+            "predictionConfidence": number,      // Overall confidence in prediction
+            "briefComment": string              // Analytical comment explaining key factors and prediction rationale
+        }
 
-Critical Requirements:
-1. All percentages must be numbers from 0 to 100
-2. Win percentages (home, away, draw) must sum exactly to 100
-3. Brief comment should explain the prediction rationale considering team strengths and formations
-4. Predication confidence should reflect:
-   - Data completeness
-   - Form consistency
-   - Weather impact
-   - Squad availability
-   - Starting lineup quality
-   - Tactical matchup (formations)
-5. Consider:
-   - Team formations and player positions
-   - Individual player matchups
-   - Recent form and consistency
-   - Head-to-head history
-   - Weather conditions impact
-   - Available players and team strength
-   - Home/away advantage
-
-Return ONLY the JSON object without any additional text or formatting.`
+        Critical Requirements:
+        1. All percentages must be numbers from 0 to 100
+        2. Win percentages (home, away, draw) must sum exactly to 100
+        3. Brief comment should explain the prediction rationale considering team strengths and formations
+        4. Predication confidence should reflect:
+           - Data completeness
+           - Form consistency
+           - Weather impact
+           - Squad availability
+           - Starting lineup quality
+           - Tactical matchup (formations)
+        5. Consider:
+           - Team formations and player positions
+           - Individual player matchups
+           - Recent form and consistency
+           - Head-to-head history
+           - Weather conditions impact
+           - Available players and team strength
+           - Home/away advantage
+        
+        Return ONLY the JSON object without any additional text or formatting.`
     }
 }
 
