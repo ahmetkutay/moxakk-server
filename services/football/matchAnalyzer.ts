@@ -385,17 +385,15 @@ export async function analyzeFootballMatch(
 async function searchMatch(matchInput: string): Promise<string> {
     const url = `https://www.bilyoner.com/iddaa`;
     const browser = await puppeteer.launch({
-        headless: true,
+        headless: "new",
         args: [
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-accelerated-2d-canvas",
-            "--no-first-run",
-            "--no-zygote",
-            "--disable-gpu",
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-software-rasterizer'
         ],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        ignoreDefaultArgs: ['--disable-extensions'],
     });
     const page = await browser.newPage();
 
@@ -472,7 +470,9 @@ async function searchMatch(matchInput: string): Promise<string> {
         console.error(`Error in searchMatch: ${error}`);
         throw error;
     } finally {
-        await browser.close();
+        if (browser) {
+            await browser.close();
+        }
     }
 }
 
@@ -485,9 +485,15 @@ async function getMatchDetails(
     const detailsUrl = `https://www.bilyoner.com/mac-karti/futbol/${matchId}/detay`;
 
     const browser = await puppeteer.launch({
-        headless: true,
-        args: ["--no-sandbox"],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        headless: "new",
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-software-rasterizer'
+        ],
+        ignoreDefaultArgs: ['--disable-extensions'],
     });
     const page = await browser.newPage();
 
@@ -550,7 +556,9 @@ async function getMatchDetails(
         console.error(`Error in getMatchDetails: ${error}`);
         return {venue: "", unavailablePlayers: {home: [], away: []}};
     } finally {
-        await browser.close();
+        if (browser) {
+            await browser.close();
+        }
     }
 }
 
@@ -561,9 +569,15 @@ async function getH2HData(
 ): Promise<Partial<MatchData>> {
     const url = `https://www.bilyoner.com/mac-karti/futbol/${matchId}/karsilastirma`;
     const browser = await puppeteer.launch({
-        headless: true,
-        args: ["--no-sandbox"],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        headless: "new",
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-software-rasterizer'
+        ],
+        ignoreDefaultArgs: ['--disable-extensions'],
     });
     const page = await browser.newPage();
 
@@ -665,23 +679,23 @@ async function getH2HData(
         console.error(`Error fetching H2H data: ${error}`);
         throw error;
     } finally {
-        await browser.close();
+        if (browser) {
+            await browser.close();
+        }
     }
 }
 
 async function getTeamLineups(matchId: string): Promise<TeamLineups> {
     const browser = await puppeteer.launch({
-        headless: true,
+        headless: "new",
         args: [
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-accelerated-2d-canvas",
-            "--no-first-run",
-            "--no-zygote",
-            "--disable-gpu",
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-software-rasterizer'
         ],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        ignoreDefaultArgs: ['--disable-extensions'],
     });
 
     logger.info('Browser launched successfully');
@@ -780,7 +794,9 @@ async function getTeamLineups(matchId: string): Promise<TeamLineups> {
             error
         );
     } finally {
-        await browser.close();
+        if (browser) {
+            await browser.close();
+        }
     }
 }
 
@@ -791,9 +807,15 @@ async function getCurrentStandings(
 ): Promise<StandingsResult> {
     const url = `https://www.bilyoner.com/mac-karti/futbol/${matchId}/puan-durumu`;
     const browser = await puppeteer.launch({
-        headless: true,
-        args: ["--no-sandbox"],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        headless: "new",
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-software-rasterizer'
+        ],
+        ignoreDefaultArgs: ['--disable-extensions'],
     });
     const page = await browser.newPage();
 
@@ -933,6 +955,8 @@ async function getCurrentStandings(
         logger.error('Error in getCurrentStandings:', error);
         throw error;
     } finally {
-        await browser.close();
+        if (browser) {
+            await browser.close();
+        }
     }
 }
