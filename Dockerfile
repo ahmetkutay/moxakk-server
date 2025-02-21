@@ -46,11 +46,6 @@ RUN groupadd -r nodeapp && useradd -r -g nodeapp nodeapp && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Set environment variables for Puppeteer
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_SKIP_CHROME_HEADLESS_SHELL=true \
-    NODE_ENV=production
-
 # Set the working directory
 WORKDIR /app
 
@@ -73,7 +68,8 @@ USER nodeapp
 
 # Set environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    PUPPETEER_SKIP_CHROME_HEADLESS_SHELL=true
 
 # Expose the port the app runs on
 EXPOSE 8080
