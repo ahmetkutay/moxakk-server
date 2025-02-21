@@ -46,6 +46,11 @@ RUN groupadd -r nodeapp && useradd -r -g nodeapp nodeapp && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Set environment variables for Puppeteer
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_SKIP_CHROME_HEADLESS_SHELL=true \
+    NODE_ENV=production
+
 # Set the working directory
 WORKDIR /app
 

@@ -57,6 +57,23 @@ export interface H2HData {
     };
 }
 
+export const PUPPETEER_CONFIG = {
+    headless: true,
+    args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-software-rasterizer',
+        '--disable-extensions',
+        '--single-process',
+        '--no-zygote'
+    ],
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
+    ignoreHTTPSErrors: true,
+    timeout: 30000
+};
+
 export abstract class BaseScraper {
     protected browser: Browser | null = null;
     constructor(
@@ -102,19 +119,22 @@ export abstract class BaseScraper {
         this.browser = await this.initializeBrowser();
     }
 
+    protected async launchBrowserWithRetry(maxRetries = 3): Promise<Browser> {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const browser = await puppeteer.launch(PUPPETEER_CONFIG);
+                return browser;
+            } catch (error) {
+                logger.error(`Failed to launch browser (attempt ${attempt}/${maxRetries}):`, error);
+                if (attempt === maxRetries) throw error;
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            }
+        }
+        throw new Error('Failed to launch browser after multiple attempts');
+    }
+
     protected async initializeBrowser(): Promise<Browser> {
-        return puppeteer.launch({
-            headless: true,
-            args: [
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-accelerated-2d-canvas",
-                "--no-first-run",
-                "--no-zygote",
-                "--disable-gpu",
-            ],
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-        });
+        return this.launchBrowserWithRetry();
     }
 
     protected async closeBrowser(): Promise<void> {

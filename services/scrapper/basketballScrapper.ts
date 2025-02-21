@@ -1,6 +1,8 @@
-import {BaseScraper, ScrapingConfig, MatchDetails} from "./baseScrapper"
+import {BaseScraper, ScrapingConfig, MatchDetails, PUPPETEER_CONFIG} from "./baseScrapper"
 import {Page} from "puppeteer"
 import logger from "../../utils/logger" // Import your custom logger
+import puppeteer from "puppeteer"
+import { Browser } from "puppeteer"
 
 const BASKETBALL_CONFIG: ScrapingConfig = {
     baseUrl: "https://www.bilyoner.com/iddaa/basketbol",
@@ -286,5 +288,9 @@ export class BasketballScrapingService extends BaseScraper {
             logger.error(`Error fetching between matches: ${errorMessage}`);
             return []
         }
+    }
+
+    protected async initializeBrowser(): Promise<Browser> {
+        return puppeteer.launch(PUPPETEER_CONFIG);
     }
 }
