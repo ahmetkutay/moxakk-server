@@ -1,5 +1,6 @@
 import { matchResponseSchema } from "../../types/matches"
 import { AIService } from "../ai/AIService"
+import { z } from "zod"
 
 export interface BaseMatchData {
   id: string
@@ -20,6 +21,7 @@ export interface BaseMatchData {
 
 export abstract class BaseCommentaryService<T extends BaseMatchData> {
   protected abstract generatePrompt(data: T): string
+  protected abstract getResponseSchema(): z.ZodSchema
   private aiService = AIService.getInstance()
 
   async generateCommentary(data: T): Promise<Object> {
@@ -34,16 +36,15 @@ export abstract class BaseCommentaryService<T extends BaseMatchData> {
       ])
 
       return responses.map(response => {
-        // Clean the response by removing markdown formatting
         const cleanJson = response
           .replace(/```json\n?/g, '')
           .replace(/```\n?/g, '')
           .trim()
-        return matchResponseSchema.parse(JSON.parse(cleanJson))
+        return this.getResponseSchema().parse(JSON.parse(cleanJson))
       })
     } catch (error) {
       console.error("Error generating content:", error)
       throw error
     }
   }
-} 
+}

@@ -1,7 +1,12 @@
 import { BasketballMatchData } from "../../types/matches"
 import { BaseCommentaryService } from "../commentary/BaseCommentaryService"
+import { matchResponseSchema } from "../../types/matches"
 
 export class BasketballCommentaryService extends BaseCommentaryService<BasketballMatchData> {
+  protected getResponseSchema() {
+    return matchResponseSchema
+  }
+
   protected generatePrompt(data: BasketballMatchData): string {
     const homeMatchResults = data.recentMatches.home.join("\n")
     const awayMatchResults = data.recentMatches.away.join("\n")
@@ -49,4 +54,3 @@ Return ONLY the JSON object, no additional text.`
 }
 
 export const generateBasketballCommentary = new BasketballCommentaryService().generateCommentary.bind(new BasketballCommentaryService())
-

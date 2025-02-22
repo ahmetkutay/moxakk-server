@@ -1,6 +1,7 @@
 import {FootballMatchData} from "../../types/matches"
 import {BaseCommentaryService} from "../commentary/BaseCommentaryService"
 import logger from "../../utils/logger";
+import { footballMatchResponseSchema } from "../../types/matches"
 
 
 export class FootballCommentaryService extends BaseCommentaryService<FootballMatchData> {
@@ -173,8 +174,12 @@ ${this.getPromptRequirements()}`
            - Weather conditions impact
            - Available players and team strength
            - Home/away advantage
-        
+
         Return ONLY the JSON object without any additional text or formatting.`
+    }
+
+    protected getResponseSchema() {
+        return footballMatchResponseSchema
     }
 }
 
