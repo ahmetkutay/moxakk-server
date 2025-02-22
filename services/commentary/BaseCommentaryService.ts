@@ -1,4 +1,4 @@
-import { matchResponseSchema } from "../../types/matches"
+import { footballMatchResponseSchema, matchResponseSchema } from "../../types/matches"
 import { AIService } from "../ai/AIService"
 
 export interface BaseMatchData {
@@ -22,7 +22,7 @@ export abstract class BaseCommentaryService<T extends BaseMatchData> {
   protected abstract generatePrompt(data: T): string
   private aiService = AIService.getInstance()
 
-  async generateCommentary(data: T): Promise<Object> {
+  async generateCommentary(data: T, selectionType: string): Promise<Object> {
     const prompt = this.generatePrompt(data)
     try {
       const responses = await Promise.all([
@@ -39,11 +39,12 @@ export abstract class BaseCommentaryService<T extends BaseMatchData> {
           .replace(/```json\n?/g, '')
           .replace(/```\n?/g, '')
           .trim()
-        return matchResponseSchema.parse(JSON.parse(cleanJson))
+        const selection = selectionType==="Football" ?  footballMatchResponseSchema.parse(JSON.parse(cleanJson)) :  matchResponseSchema.parse(JSON.parse(cleanJson))
+        return selection;
       })
     } catch (error) {
       console.error("Error generating content:", error)
       throw error
     }
   }
-} 
+}

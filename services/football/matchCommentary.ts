@@ -173,7 +173,7 @@ ${this.getPromptRequirements()}`
            - Weather conditions impact
            - Available players and team strength
            - Home/away advantage
-        
+
         Return ONLY the JSON object without any additional text or formatting.`
     }
 }

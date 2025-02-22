@@ -26,14 +26,14 @@ const basketballCommentary = new BasketballCommentaryService()
 router.post("/get-match", createMatchRoute<MatchInput, FootballMatchData>({
   inputSchema: matchRequestSchema,
   analyzer: analyzeFootballMatch,
-  commentaryGenerator: footballCommentary.generateCommentary.bind(footballCommentary)
+  commentaryGenerator: (data) => footballCommentary.generateCommentary(data, "Football")
 }));
 
 // Basketball route
 router.post("/get-basketball", createMatchRoute<MatchInput, BasketballMatchData>({
   inputSchema: matchRequestSchema,
   analyzer: analyzeBasketballMatch,
-  commentaryGenerator: basketballCommentary.generateCommentary.bind(basketballCommentary)
+  commentaryGenerator: (data) => basketballCommentary.generateCommentary(data, "Basketball")
 }));
 
 export default router;
