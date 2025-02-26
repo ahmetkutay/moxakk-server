@@ -36,7 +36,7 @@ jobs:
     steps:
       - add_ssh_keys:
           fingerprints:
-            - "SHA256:epkugIY3IvzkcZuf3b1hweoN2oANHwE+jiZT4J7LU1g"
+            - "SHA256:hOue1pWre+Ul8S2cq2HqNbZdEW0S16Dxh/PhaVvFo7I"
       - run:
           name: Add server to known hosts
           command: |
