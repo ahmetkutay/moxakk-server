@@ -1,31 +1,78 @@
-# Use the latest 2.1 version of CircleCI pipeline process engine.
-# See: https://circleci.com/docs/configuration-reference
 version: 2.1
 
-# Define a job to be invoked later in a workflow.
-# See: https://circleci.com/docs/jobs-steps/#jobs-overview & https://circleci.com/docs/configuration-reference/#jobs
-jobs:
-  say-hello:
-    # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.
-    # See: https://circleci.com/docs/executor-intro/ & https://circleci.com/docs/configuration-reference/#executor-job
-    docker:
-      # Specify the version you desire here
-      # See: https://circleci.com/developer/images/image/cimg/base
-      - image: cimg/base:current
+orbs:
+  sonarcloud: sonarsource/sonarcloud@2.0.0
 
-    # Add steps to the job
-    # See: https://circleci.com/docs/jobs-steps/#steps-overview & https://circleci.com/docs/configuration-reference/#steps
+executors:
+  docker-executor:
+    docker:
+      - image: cimg/node:18.19.0
+  sonar-scanner:
+    docker:
+      - image: sonarsource/sonar-scanner-cli:latest
+
+jobs:
+  build:
+    executor: docker-executor
     steps:
-      # Checkout the code as the first step.
       - checkout
       - run:
-          name: "Say hello"
-          command: "echo Hello, World!"
+          name: Install dependencies and build project
+          command: |
+            npm ci
+            npm run build
+      - setup_remote_docker:
+          version: 20.10.14
+      - run:
+          name: Build Docker image
+          command: |
+            docker build -t ${DOCKER_USERNAME}/moxakk-analyzer:latest .
+      - sonarcloud/scan
 
-# Orchestrate jobs using workflows
-# See: https://circleci.com/docs/workflows/ & https://circleci.com/docs/configuration-reference/#workflows
+  push:
+    executor: docker-executor
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 20.10.14
+      - run:
+          name: Push Docker image to Docker Hub
+          command: |
+            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+            docker push ${DOCKER_USERNAME}/moxakk-analyzer:latest
+
+  deploy:
+    docker:
+      - image: cimg/base:2023.06
+    steps:
+      - add_ssh_keys:
+          fingerprints:
+            - "SHA256:epkugIY3IvzkcZuf3b1hweoN2oANHwE+jiZT4J7LU1g"  # Replace with your actual SSH key fingerprint
+      - run:
+          name: Add server to known hosts
+          command: |
+            mkdir -p ~/.ssh
+            echo $SSH_HOST_KEY >> ~/.ssh/known_hosts
+      - run:
+          name: Deploy to server
+          command: |
+            ssh $SSH_USER@$SSH_HOST "cd /home/kutaykaracair/moxakk-analyzer-prod && \
+            docker pull ${DOCKER_USERNAME}/moxakk-analyzer:latest && \
+            docker-compose --env-file .env down || true && \
+            docker-compose --env-file .env up -d"
+
 workflows:
-  say-hello-workflow: # This is the name of the workflow, feel free to change it to better match your workflow.
-    # Inside the workflow, you define the jobs you want to run.
+  build_and_deploy:
     jobs:
-      - say-hello
+      - build:
+          context:
+            - docker-hub-creds
+            - SonarCloud
+      - push:
+          requires:
+            - build
+          context: docker-hub-creds
+      - deploy:
+          requires:
+            - push
+          context: ssh-deployment
