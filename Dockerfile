@@ -58,10 +58,8 @@ RUN npm ci --ignore-scripts && \
 COPY --chown=nodeapp:nodeapp . ./
 
 # Create logs directory and set permissions
-RUN mkdir -p /app/logs && chown -R nodeapp:nodeapp /app/logs
-
-# Build the TypeScript files
-RUN npm run build
+RUN mkdir -p /app/logs && chown -R nodeapp:nodeapp /app/logs && \
+    npm run build
 
 # Switch to non-root user
 USER nodeapp
