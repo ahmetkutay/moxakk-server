@@ -22,7 +22,7 @@ jobs:
             npm ci
             npm run build
       - setup_remote_docker:
-          version: default
+          version: 20.10.14
       - run:
           name: Build Docker image
           command: |
@@ -34,7 +34,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
-          version: default
+          version: 20.10.14
       - run:
           name: Push Docker image to Docker Hub
           command: |
