@@ -22,7 +22,7 @@ jobs:
             npm ci
             npm run build
       - setup_remote_docker:
-          version: 20.10.14
+          version: default
       - run:
           name: Build Docker image
           command: |
@@ -34,7 +34,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
-          version: 20.10.14
+          version: default
       - run:
           name: Push Docker image to Docker Hub
           command: |
@@ -47,7 +47,7 @@ jobs:
     steps:
       - add_ssh_keys:
           fingerprints:
-            - "SHA256:epkugIY3IvzkcZuf3b1hweoN2oANHwE+jiZT4J7LU1g"  # Replace with your actual SSH key fingerprint
+            - "SHA256:epkugIY3IvzkcZuf3b1hweoN2oANHwE+jiZT4J7LU1g"
       - run:
           name: Add server to known hosts
           command: |
