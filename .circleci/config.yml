@@ -21,13 +21,20 @@ jobs:
           command: |
             npm ci
             npm run build
-      - setup_remote_docker
+      - setup_remote_docker:
+          docker_layer_caching: false
       - run:
-          name: Build and Push Docker image
+          name: Set up Docker Buildx
           command: |
-            docker build -t ${DOCKER_USERNAME}/moxakk-analyzer:latest .
+            docker buildx create --name mybuilder --use
+            docker buildx inspect --bootstrap
+      - run:
+          name: Build and Push Multi-Architecture Docker image
+          command: |
             echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-            docker push ${DOCKER_USERNAME}/moxakk-analyzer:latest
+            docker buildx build --platform linux/amd64,linux/arm64 \
+              -t ${DOCKER_USERNAME}/moxakk-analyzer:latest \
+              --push .
       - sonarcloud/scan
 
   deploy:
