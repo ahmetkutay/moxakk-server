@@ -46,6 +46,7 @@ jobs:
           name: Deploy to server
           command: |
             ssh $SSH_USER@$SSH_HOST "cd /home/kutaykaracair/moxakk-analyzer-prod && \
+            echo \"$DOCKER_PASSWORD\" | docker login -u \"$DOCKER_USERNAME\" --password-stdin && \
             docker pull ${DOCKER_USERNAME}/moxakk-analyzer:latest && \
             docker-compose --env-file .env down || true && \
             docker-compose --env-file .env up -d"
@@ -60,4 +61,6 @@ workflows:
       - deploy:
           requires:
             - build_and_push
-          context: ssh-deployment
+          context:
+            - ssh-deployment
+            - docker-hub-creds
