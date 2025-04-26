@@ -7,8 +7,12 @@
     "lib": ["ES2017", "DOM"],
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true
   },
-  "include": ["*.ts", "config/config.ts", "config/db.ts", "model/MatchDataModel.ts", "services/football/matchAnalyzer.ts"],
-  "exclude": ["node_modules", "**/*.spec.ts"]
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "**/*.spec.ts", "dist"]
 }

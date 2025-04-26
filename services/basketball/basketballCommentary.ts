@@ -1,11 +1,11 @@
-import { BasketballMatchData } from "../../types/matches"
-import { BaseCommentaryService } from "../commentary/BaseCommentaryService"
+import { BasketballMatchData } from '../../types/matches';
+import { BaseCommentaryService } from '../commentary/BaseCommentaryService';
 
 export class BasketballCommentaryService extends BaseCommentaryService<BasketballMatchData> {
   protected generatePrompt(data: BasketballMatchData): string {
-    const homeMatchResults = data.recentMatches.home.join("\n")
-    const awayMatchResults = data.recentMatches.away.join("\n")
-    const betweenMatchResults = data.recentMatches.between.join("\n")
+    const homeMatchResults = data.recentMatches.home.join('\n') || 'No recent matches';
+    const awayMatchResults = data.recentMatches.away.join('\n') || 'No recent matches';
+    const betweenMatchResults = data.recentMatches.between.join('\n') || 'No recent H2H matches';
 
     return `
 You are an AI sports prediction model. Based on the provided match data, generate a JSON response with ONLY the following structure:
@@ -19,7 +19,7 @@ Input Data:
 - Recent Form ${data.awayTeam}: ${awayMatchResults}
 - H2H History: ${betweenMatchResults}
 
-${this.getPromptRequirements()}`
+${this.getPromptRequirements()}`;
   }
 
   private getPromptRequirements(): string {
@@ -44,9 +44,6 @@ Requirements:
 5. Consider league level, team quality differences, and weather impact
 6. Base predictions on recent form, H2H history, and team compositions
 
-Return ONLY the JSON object, no additional text.`
+Return ONLY the JSON object, no additional text.`;
   }
 }
-
-export const generateBasketballCommentary = new BasketballCommentaryService().generateCommentary.bind(new BasketballCommentaryService())
-

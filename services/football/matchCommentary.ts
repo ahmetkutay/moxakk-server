@@ -1,35 +1,30 @@
-import {FootballMatchData} from "../../types/matches"
-import {BaseCommentaryService} from "../commentary/BaseCommentaryService"
-import logger from "../../utils/logger";
-
+import { FootballMatchData } from '../../types/matches';
+import { BaseCommentaryService } from '../commentary/BaseCommentaryService';
+import logger from '../../utils/logger';
 
 export class FootballCommentaryService extends BaseCommentaryService<FootballMatchData> {
-    protected generatePrompt(data: FootballMatchData): string {
-        const homePlayerAvailabilityList = data.unavailablePlayers.home.join("\n")
-        const awayPlayerAvailabilityList = data.unavailablePlayers.away.join("\n")
-        const homeMatchResults = data.recentMatches.home.join("\n")
-        const awayMatchResults = data.recentMatches.away.join("\n")
-        const betweenMatchResults = data.recentMatches.between.join("\n")
-        const homeTeamStanding = data.standings.home
-        const awayTeamStanding = data.standings.away
+  protected generatePrompt(data: FootballMatchData): string {
+    const homePlayerAvailabilityList = data.unavailablePlayers.home.join('\n');
+    const awayPlayerAvailabilityList = data.unavailablePlayers.away.join('\n');
+    const homeMatchResults = data.recentMatches.home.join('\n');
+    const awayMatchResults = data.recentMatches.away.join('\n');
+    const betweenMatchResults = data.recentMatches.between.join('\n');
+    const homeTeamStanding = data.standings.home;
+    const awayTeamStanding = data.standings.away;
 
-        // Format lineup players
-        const formatLineup = (players: any[]) => {
-            return players.map(player =>
-                `${player.number}. ${player.name} (${player.position})`
-            ).join("\n")
-        }
+    // Format lineup players
+    const formatLineup = (players: any[]) => {
+      return players
+        .map((player) => `${player.number}. ${player.name} (${player.position})`)
+        .join('\n');
+    };
 
-        // Get formations and lineups if available
-        // @ts-ignore
-        const homeFormation = data.teamLineups.home.formation || "Unknown"
-        // @ts-ignore
-        const awayFormation = data.teamLineups.away.formation || "Unknown"
-        // @ts-ignore
-        const homeLineup = data.teamLineups.home.players || []
-        // @ts-ignore
-        const awayLineup =  data.teamLineups.away.players || []
-        let prompt = `
+    // Get formations and lineups if available
+    const homeFormation = data.teamLineups.home.formation || 'Unknown';
+    const awayFormation = data.teamLineups.away.formation || 'Unknown';
+    const homeLineup = data.teamLineups.home.players || [];
+    const awayLineup = data.teamLineups.away.players || [];
+    const prompt = `
 You are an expert football analyst and prediction model. Based on the provided match data, generate a detailed predictive analysis.
 
 Match Information:
@@ -129,13 +124,13 @@ ${homePlayerAvailabilityList || 'No reported absences'}
 ${data.awayTeam} Unavailable Players:
 ${awayPlayerAvailabilityList || 'No reported absences'}
 
-${this.getPromptRequirements()}`
-        logger.info(`Generated prompt: ${prompt}`)
-        return prompt;
-    }
+${this.getPromptRequirements()}`;
+    logger.info(`Generated prompt: ${prompt}`);
+    return prompt;
+  }
 
-    private getPromptRequirements(): string {
-        return `
+  private getPromptRequirements(): string {
+    return `
         Simulate the match based on the data provided and generate a detailed predictive analysis.
         Analyze all provided data and respond with a single JSON object in exactly this format:
         {
@@ -174,8 +169,6 @@ ${this.getPromptRequirements()}`
            - Available players and team strength
            - Home/away advantage
 
-        Return ONLY the JSON object without any additional text or formatting.`
-    }
+        Return ONLY the JSON object without any additional text or formatting.`;
+  }
 }
-
-export const generateMatchCommentary = new FootballCommentaryService().generateCommentary.bind(new FootballCommentaryService())

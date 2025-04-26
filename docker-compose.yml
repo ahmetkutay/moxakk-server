@@ -1,12 +1,116 @@
-version: '3'
+version: '3.8'
+
+# Common service definitions
+x-app-common: &app-common
+  restart: always
+  env_file:
+    - .env
+  volumes:
+    - ./logs:/app/logs
 
 services:
-  app:
-    image: ${DOCKER_USERNAME}/moxakk-analyzer:latest
-    restart: always
+  # Development environment
+  app-dev:
+    <<: *app-common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: development
     ports:
       - "8080:8080"
-    env_file:
-      - .env
+    environment:
+      - NODE_ENV=development
+      - DEBUG=true
+      - LOG_LEVEL=debug
     volumes:
-      - ./data:/app/data
+      - ./:/app
+      - /app/node_modules
+    depends_on:
+      - redis
+    command: npm run dev
+
+  # Production environment
+  app-prod:
+    <<: *app-common
+    image: ${DOCKER_USERNAME:-moxakk}/moxakk-analyzer:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+    depends_on:
+      - redis-prod
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  # Staging environment
+  app-staging:
+    <<: *app-common
+    image: ${DOCKER_USERNAME:-moxakk}/moxakk-analyzer:staging
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: staging
+    ports:
+      - "8081:8080"
+    environment:
+      - NODE_ENV=staging
+      - LOG_LEVEL=debug
+    depends_on:
+      - redis-staging
+
+  # Redis instances for different environments
+  redis:
+    image: redis/redis-stack:latest
+    restart: always
+    ports:
+      - "6379:6379"
+      - "8001:8001"  # RedisInsight - Redis GUI
+    volumes:
+      - redis_data_dev:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis}
+
+  redis-staging:
+    image: redis/redis-stack:latest
+    restart: always
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data_staging:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis}
+
+  redis-prod:
+    image: redis/redis-stack:latest
+    restart: always
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis_data_prod:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:-redis}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+
+volumes:
+  redis_data_dev:
+  redis_data_staging:
+  redis_data_prod:
