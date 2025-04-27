@@ -24,12 +24,28 @@ export class FootballCommentaryService extends BaseCommentaryService<FootballMat
     const awayFormation = data.teamLineups.away.formation || 'Unknown';
     const homeLineup = data.teamLineups.home.players || [];
     const awayLineup = data.teamLineups.away.players || [];
+
+    // Referee info
+    let refereeSection = '';
+    if (data.refereeStats) {
+      const ref = data.refereeStats;
+      refereeSection = `\nReferee Information:\n- Name: ${ref.name}\n- Country: ${ref.country}`;
+      if (ref.summary) {
+        refereeSection += `\n- Home Win: ${ref.summary.homeWin}, Draw: ${ref.summary.draw}, Away Win: ${ref.summary.awayWin}`;
+        refereeSection += `\n- Yellow Cards: ${ref.summary.yellowCards}, Red Cards: ${ref.summary.redCards}, Penalties: ${ref.summary.penalties}`;
+      }
+      if (ref.tournaments && ref.tournaments.length > 0) {
+        refereeSection += '\n- Tournaments: ' + ref.tournaments.map(t => `${t.name} (${t.matchCount})`).join(', ');
+      }
+    }
+
     const prompt = `
-You are an expert football analyst and prediction model. Based on the provided match data, generate a detailed predictive analysis.
+You are an expert football analyst and prediction model. Based on the provided match data, generate a detailed predictive analysis. Use all available data, especially referee statistics, weather, and squad status. If referee stats indicate a tendency for more cards, penalties, or home/away bias, reflect this in your analysis and in the predicted outcomes (e.g., more cards, higher/lower score, penalty likelihood). If data is missing or incomplete, lower the prediction confidence and mention this in your comment.
 
 Match Information:
 - ID: ${data.id}
 - Teams: ${data.homeTeam} vs ${data.awayTeam}
+${refereeSection}
 
 Team Formations and Lineups:
 ${data.homeTeam} (${homeFormation}):
@@ -60,7 +76,7 @@ ${data.homeTeam} Home Standings:
 - Goals Against: ${homeTeamStanding.homeForm.goalsAgainst}
 - Goal Difference: ${homeTeamStanding.homeForm.goalDifference}
 
-$data.homeTeam} Away Standings:
+${data.homeTeam} Away Standings:
 - Position: ${homeTeamStanding.awayForm.position}
 - Played: ${homeTeamStanding.awayForm.played}
 - Won: ${homeTeamStanding.awayForm.won}
@@ -146,29 +162,17 @@ ${this.getPromptRequirements()}`;
                 "away": number                   // Predicted goals for away team
             },
             "predictionConfidence": number,      // Overall confidence in prediction
-            "briefComment": string              // Analytical comment explaining key factors and prediction rationale
+            "briefComment": string,              // Analytical comment explaining key factors and prediction rationale (must mention referee, weather, and squad if relevant)
+            "refereeImpact": string,             // Short summary of how referee stats may affect the match (e.g. card/penalty tendency, home/away bias)
+            "weatherImpact": string              // Short summary of how weather may affect the match
         }
 
         Critical Requirements:
         1. All percentages must be numbers from 0 to 100
         2. Win percentages (home, away, draw) must sum exactly to 100
-        3. Brief comment should explain the prediction rationale considering team strengths and formations
-        4. Predication confidence should reflect:
-           - Data completeness
-           - Form consistency
-           - Weather impact
-           - Squad availability
-           - Starting lineup quality
-           - Tactical matchup (formations)
-        5. Consider:
-           - Team formations and player positions
-           - Individual player matchups
-           - Recent form and consistency
-           - Head-to-head history
-           - Weather conditions impact
-           - Available players and team strength
-           - Home/away advantage
-
-        Return ONLY the JSON object without any additional text or formatting.`;
+        3. Brief comment should explain the prediction rationale considering team strengths, formations, referee, weather, and squad status
+        4. If referee or weather data is missing, note this and lower prediction confidence
+        5. If referee stats show a bias or tendency, reflect this in the prediction and comment
+        6. Return ONLY the JSON object without any additional text or formatting.`;
   }
 }

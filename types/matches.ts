@@ -62,6 +62,37 @@ export interface BaseMatchData {
   };
 }
 
+export interface RefereeMatch {
+  date: string;
+  tournament: string;
+  homeTeam: string;
+  awayTeam: string;
+  score: string;
+  halfTimeScore: string;
+  yellowCards: number;
+  redCards: number;
+  penalties: number;
+}
+
+export interface RefereeStats {
+  name: string;
+  country: string;
+  age?: string;
+  tournaments?: Array<{
+    name: string;
+    matchCount: number;
+  }>;
+  summary?: {
+    homeWin: number;
+    draw: number;
+    awayWin: number;
+    yellowCards: string; // e.g. '28 - 20'
+    redCards: string;    // e.g. '4 - 2'
+    penalties: string;   // e.g. '1 - 3'
+  };
+  recentMatches?: RefereeMatch[];
+}
+
 export interface FootballMatchData extends BaseMatchData {
   unavailablePlayers: {
     home: string[];
@@ -69,6 +100,7 @@ export interface FootballMatchData extends BaseMatchData {
   };
   teamLineups: TeamLineups;
   standings: StandingsResult;
+  refereeStats?: RefereeStats;
 }
 
 export type BasketballMatchData = BaseMatchData;

@@ -4,6 +4,7 @@ import { WeatherService } from '../weather/WeatherService';
 import logger from '../../utils/logger';
 import { ScrapingError } from '../scrapper/baseScrapper';
 import { delay } from '../../utils/common';
+import { RefereeStats } from '../../types/matches';
 
 interface MatchData {
   id: string;
@@ -87,7 +88,95 @@ interface StandingsResult {
   away: TeamStanding;
 }
 
-export async function analyzeFootballMatch(homeTeam: string, awayTeam: string): Promise<MatchData> {
+async function getRefereeStats(matchId: string): Promise<RefereeStats | undefined> {
+  const url = `https://www.bilyoner.com/mac-karti/futbol/${matchId}/hakem-istatistikleri`;
+  const browser = await chromium.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-software-rasterizer',
+    ],
+  });
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  try {
+    await page.goto(url, { waitUntil: 'networkidle' });
+    // Dinamik veri için 5 sn bekle
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    // Hakem adı ve ülke
+    const refereeInfo = await page.evaluate(() => {
+      const name = document.querySelector('.broadage-referee-name')?.textContent?.trim() || '';
+      const country = document.querySelector('.broadage-referee-country')?.textContent?.replace('Ülke:', '').trim() || '';
+      return { name, country };
+    });
+    // Turnuva özetleri (doğru şekilde çek)
+    const tournaments = await page.$$eval(
+      '.broadage-static-table table.broadage-table.broadage-data-list-table.broadage-home-team tbody tr.broadage-row.broadage-body-row',
+      rows => rows
+        .filter(row => !row.textContent?.includes('TOPLAM'))
+        .map(row => {
+          const cells = row.querySelectorAll('td');
+          const name = cells[0]?.querySelector('.broadage-tournament')?.textContent?.trim() || '';
+          const matchCount = parseInt(cells[1]?.textContent?.trim() || '0', 10);
+          return { name, matchCount };
+        })
+    );
+    // Genel özet (galibiyet, kart, penaltı)
+    const summary = await page.evaluate(() => {
+      const getCell = (idx: number) => document.querySelectorAll('.broadage-table.broadage-data-list-table.broadage-home-team tbody tr.broadage-table-total td')[idx]?.textContent?.trim() || '';
+      return {
+        homeWin: parseInt(getCell(0), 10),
+        draw: parseInt(getCell(1), 10),
+        awayWin: parseInt(getCell(2), 10),
+        yellowCards: getCell(3),
+        redCards: getCell(4),
+        penalties: getCell(5),
+      };
+    });
+    // Hakemin yönettiği maçlar tablosunu daha doğru parse et
+    const recentMatches = await page.$$eval(
+      '.broadage-fixture-content tbody tr.broadage-football-line',
+      (rows) =>
+        Array.from(rows).map((row) => {
+          const cells = row.querySelectorAll('td');
+          const getText = (cellIdx: number): string => {
+            const cell = cells[cellIdx];
+            if (!cell) return '';
+            const div = cell.querySelector('div');
+            return div ? div.textContent?.trim() || '' : cell.textContent?.trim() || '';
+          };
+          return {
+            date: getText(0) || '',
+            tournament: getText(1) || '',
+            homeTeam: getText(2) || '',
+            awayTeam: getText(6) || '',
+            score: getText(4) || '',
+            halfTimeScore: getText(7) || '',
+            yellowCards: parseInt(getText(8) || '0', 10),
+            redCards: parseInt(getText(9) || '0', 10),
+            penalties: parseInt(getText(10) || '0', 10),
+          };
+        })
+    );
+    return {
+      name: refereeInfo.name,
+      country: refereeInfo.country,
+      tournaments,
+      summary,
+      recentMatches,
+    };
+  } catch (error) {
+    logger.error('Error scraping referee stats:', error);
+    return undefined;
+  } finally {
+    await browser.close();
+  }
+}
+
+export async function analyzeFootballMatch(homeTeam: string, awayTeam: string): Promise<MatchData & { refereeStats?: RefereeStats }> {
   const matchInput = `${homeTeam}-${awayTeam}`;
 
   // Check if the match data already exists in Redis
@@ -220,12 +309,13 @@ export async function analyzeFootballMatch(homeTeam: string, awayTeam: string): 
   const matchId = await searchMatch(matchInput);
   logger.info(`Match ID retrieved: ${matchId}`);
 
-  // Then we can run multiple scraping operations in parallel
-  const [matchDetails, h2hData, teamLineups, teamStands] = await Promise.all([
+  // Referee stats'i paralel olarak çek
+  const [matchDetails, h2hData, teamLineups, teamStands, refereeStats] = await Promise.all([
     getMatchDetails(matchId, homeTeam, awayTeam),
     getH2HData(matchId, homeTeam, awayTeam),
     getTeamLineups(matchId),
     getCurrentStandings(matchId, homeTeam, awayTeam),
+    getRefereeStats(matchId),
   ]);
 
   // Weather data depends on venue from matchDetails, so can't be fully parallelized
@@ -236,7 +326,7 @@ export async function analyzeFootballMatch(homeTeam: string, awayTeam: string): 
 
   logger.info('All data collected successfully');
 
-  const matchData: MatchData = {
+  const matchData: MatchData & { refereeStats?: RefereeStats } = {
     id: matchInput,
     matchInput: matchInput,
     homeTeam: homeTeam,
@@ -256,6 +346,7 @@ export async function analyzeFootballMatch(homeTeam: string, awayTeam: string): 
       home: teamStands.home,
       away: teamStands.away,
     },
+    refereeStats,
   };
 
   // Save to Redis

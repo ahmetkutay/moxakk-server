@@ -30,6 +30,7 @@ export function createMatchRoute<TInput extends BaseInput, TData>({
       return res.status(200).json({
         success: true,
         content,
+        refereeStats: (result as any).refereeStats || undefined,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
