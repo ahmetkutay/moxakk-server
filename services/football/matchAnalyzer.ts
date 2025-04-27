@@ -126,14 +126,37 @@ async function getRefereeStats(matchId: string): Promise<RefereeStats | undefine
     );
     // Genel özet (galibiyet, kart, penaltı)
     const summary = await page.evaluate(() => {
-      const getCell = (idx: number) => document.querySelectorAll('.broadage-table.broadage-data-list-table.broadage-home-team tbody tr.broadage-table-total td')[idx]?.textContent?.trim() || '';
+      const summaryTable = Array.from(document.querySelectorAll('.broadage-scrolled-table table.broadage-table.broadage-data-list-table.broadage-home-team')).find(table => {
+        const ths = table.querySelectorAll('thead th');
+        return ths.length >= 6 && ths[0].textContent?.trim() === '1';
+      });
+      if (!summaryTable) return {
+        homeWin: 0,
+        draw: 0,
+        awayWin: 0,
+        yellowCards: '',
+        redCards: '',
+        penalties: ''
+      };
+      // TOPLAM satırını bul, yoksa son satırı kullan
+      let totalRow = Array.from(summaryTable.querySelectorAll('tbody tr')).find(tr => tr.textContent?.toUpperCase().includes('TOPLAM'));
+      if (!totalRow) {
+        const allRows = Array.from(summaryTable.querySelectorAll('tbody tr'));
+        totalRow = allRows[allRows.length - 1];
+      }
+      const tds = totalRow ? totalRow.querySelectorAll('td') : [];
+      const parseCell = (idx: number) => {
+        const val = tds[idx]?.textContent?.replace(/[^0-9]/g, '').trim();
+        if (!val || isNaN(Number(val))) return 0;
+        return parseInt(val, 10);
+      };
       return {
-        homeWin: parseInt(getCell(0), 10),
-        draw: parseInt(getCell(1), 10),
-        awayWin: parseInt(getCell(2), 10),
-        yellowCards: getCell(3),
-        redCards: getCell(4),
-        penalties: getCell(5),
+        homeWin: parseCell(0),
+        draw: parseCell(1),
+        awayWin: parseCell(2),
+        yellowCards: tds[3]?.textContent?.trim() || '',
+        redCards: tds[4]?.textContent?.trim() || '',
+        penalties: tds[5]?.textContent?.trim() || ''
       };
     });
     // Hakemin yönettiği maçlar tablosunu daha doğru parse et

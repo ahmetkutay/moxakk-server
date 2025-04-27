@@ -42,10 +42,15 @@ export class AIService {
 
     // Initialize clients
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY as string);
-    this.geminiClient = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // Google Gemini (free): gemini-2.5-pro-exp-03-25 (en iyi ücretsiz model, preview)
+    this.geminiClient = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    // OpenAI: gpt-4-1106-preview (gpt-4.1 mini, uygun fiyatlı ve güçlü)
     this.openAIClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY as string });
+    // Cohere: command-r (ücretsiz ve güçlü model)
     this.cohereClient = new CohereClientV2({ token: process.env.COHERE_API_KEY as string });
+    // Anthropic: claude-3-haiku-20240307 (Claude 3.5 Haiku, hızlı ve iyi)
     this.anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY as string });
+    // Mistral (free): mistral-tiny (ücretsiz ve hızlı model)
     this.mistralClient = new Mistral({ apiKey: process.env.MISTRAL_API_KEY as string });
 
     this.rateLimiter = rateLimit({
@@ -91,7 +96,7 @@ export class AIService {
   public async getOpenAIResponse(prompt: string): Promise<string> {
     try {
       const response = await this.openAIClient.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4-1106-preview',
         messages: [
           {
             role: 'system',
@@ -111,7 +116,7 @@ export class AIService {
   public async getCohereResponse(prompt: string): Promise<string> {
     try {
       const response = await this.cohereClient.chat({
-        model: 'command-r-plus',
+        model: 'command-r',
         messages: [
           { role: 'user', content: prompt },
           {
@@ -131,7 +136,7 @@ export class AIService {
   public async getAnthropicResponse(prompt: string): Promise<string> {
     try {
       const response = await this.anthropicClient.messages.create({
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-3-5-haiku-20241022',
         max_tokens: 1024,
         messages: [{ role: 'user', content: prompt }],
         system: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores.`,
