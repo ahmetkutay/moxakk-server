@@ -2,6 +2,7 @@ import { BaseScraper, ScrapingConfig, ScrapingError } from '../scrapper/baseScra
 import { Page } from 'playwright';
 import logger from '../../utils/logger';
 import { delay } from '../../utils/common';
+import axios from 'axios';
 import {
   PlayerData,
   PlayerRating,
@@ -16,10 +17,43 @@ import {
   CurrentSeasonStats,
 } from '../../types/matches';
 
+// Interface for the SofaScore API search response
+interface SofaScoreApiSearchResponse {
+  results: SofaScoreApiSearchResult[];
+}
+
+interface SofaScoreApiSearchResult {
+  entity: {
+    id: number;
+    name: string;
+    slug: string;
+    team?: {
+      id: number;
+      name: string;
+      nameCode: string;
+      slug: string;
+    };
+    country?: {
+      alpha2: string;
+      name: string;
+      slug: string;
+    };
+    shortName?: string;
+    position?: string;
+    jerseyNumber?: string;
+  };
+  score: number;
+  type: string;
+}
+
 interface PlayerSearchResult {
   id: string;
   name: string;
   url: string;
+  team?: {
+    id: number;
+    name: string;
+  };
 }
 
 export class SofaScorePlayerService extends BaseScraper {
@@ -46,15 +80,159 @@ export class SofaScorePlayerService extends BaseScraper {
   }
 
   /**
+   * Search for a player using the SofaScore API
+   * @param playerName The name of the player to search for
+   * @param teamName Optional team name to match against player's team
+   * @returns The player's search result if found
+   */
+  async searchPlayerApi(playerName: string, teamName?: string): Promise<PlayerSearchResult | null> {
+    return this.withRetry(async () => {
+      try {
+        logger.info(`Searching for player via API: ${playerName}${teamName ? ` (team: ${teamName})` : ''}`);
+
+        // Construct the API URL
+        const apiUrl = `https://www.sofascore.com/api/v1/search/all?q=${encodeURIComponent(playerName)}&page=0`;
+
+        // Make the API request
+        const response = await axios.get<SofaScoreApiSearchResponse>(apiUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            Accept: 'application/json',
+            Referer: 'https://www.sofascore.com/',
+          },
+        });
+
+        // Check if we got valid results
+        if (!response.data?.results || response.data.results.length === 0) {
+          logger.warn(`No player found via API for: ${playerName}`);
+          return null;
+        }
+
+        // Filter results to only include players
+        const playerResults = response.data.results.filter(result => result.type === 'player');
+
+        if (playerResults.length === 0) {
+          logger.warn(`No player results found via API for: ${playerName}`);
+          return null;
+        }
+
+        // If team name is provided, try to find a player with matching team
+        if (teamName) {
+          // Find players with matching team names
+          const playersWithTeam = playerResults.filter(result => result.entity.team);
+
+          // Check for team name matches
+          for (const result of playersWithTeam) {
+            if (this.checkTeamNameMatch(result.entity.team?.name || '', teamName)) {
+              logger.info(`Found player ${result.entity.name} with matching team ${result.entity.team?.name}`);
+              return {
+                id: result.entity.id.toString(),
+                name: result.entity.name,
+                url: `/player/${result.entity.slug}/${result.entity.id}`,
+                team: result.entity.team ? {
+                  id: result.entity.team.id,
+                  name: result.entity.team.name
+                } : undefined
+              };
+            }
+          }
+
+          logger.warn(`No player found with matching team for: ${playerName}, team: ${teamName}`);
+        }
+
+        // If no team match or no team provided, return the first result
+        const bestResult = playerResults[0];
+        return {
+          id: bestResult.entity.id.toString(),
+          name: bestResult.entity.name,
+          url: `/player/${bestResult.entity.slug}/${bestResult.entity.id}`,
+          team: bestResult.entity.team ? {
+            id: bestResult.entity.team.id,
+            name: bestResult.entity.team.name
+          } : undefined
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error(`Error searching player via API: ${errorMessage}`);
+        throw new ScrapingError(`Failed to search player via API: ${errorMessage}`, 'API_SEARCH_ERROR');
+      }
+    }, `Failed to search for player via API: ${playerName}`);
+  }
+
+  /**
+   * Check if two team names match or are similar
+   * @param team1 First team name
+   * @param team2 Second team name
+   * @returns True if the team names match or are similar
+   */
+  private checkTeamNameMatch(team1: string, team2: string): boolean {
+    // Normalize team names
+    const normalizedTeam1 = team1.toLowerCase().trim();
+    const normalizedTeam2 = team2.toLowerCase().trim();
+
+    // Direct match
+    if (normalizedTeam1 === normalizedTeam2) {
+      return true;
+    }
+
+    // Inclusion match
+    if (normalizedTeam1.includes(normalizedTeam2) || normalizedTeam2.includes(normalizedTeam1)) {
+      return true;
+    }
+
+    // Similarity check
+    const similarityThreshold = 0.7;
+    const similarity = this.calculateSimilarity(normalizedTeam1, normalizedTeam2);
+
+    return similarity >= similarityThreshold;
+  }
+
+  /**
+   * Calculate similarity between two strings
+   * @param a First string
+   * @param b Second string
+   * @returns Similarity score between 0 and 1
+   */
+  private calculateSimilarity(a: string, b: string): number {
+    if (a.length < 2 || b.length < 2) return 0;
+
+    if (a.includes(b) || b.includes(a)) {
+      return 1;
+    }
+
+    // Simple substring match
+    for (let i = 0; i < a.length - 1; i++) {
+      const substring = a.substring(i, i + 2);
+      if (b.includes(substring)) {
+        return 0.8;
+      }
+    }
+
+    return 0;
+  }
+
+  /**
    * Search for a player on SofaScore and return their ID
    * @param playerName The name of the player to search for
+   * @param teamName Optional team name to match against player's team
    * @returns The player's ID and URL if found
    */
-  async searchPlayer(playerName: string): Promise<PlayerSearchResult | null> {
+  async searchPlayer(playerName: string, teamName?: string): Promise<PlayerSearchResult | null> {
+    // First try to search using the API
+    try {
+      const apiResult = await this.searchPlayerApi(playerName, teamName);
+      if (apiResult) {
+        return apiResult;
+      }
+    } catch (error) {
+      logger.warn(`API search failed, falling back to web scraping: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    // Fall back to web scraping if API search fails
     return this.withRetry(async () => {
       const page = await this.createPage();
       try {
-        logger.info(`Searching for player: ${playerName}`);
+        logger.info(`Searching for player via web scraping: ${playerName}`);
 
         // Navigate to SofaScore search page with the player name
         const searchUrl = `${this.config.baseUrl}/search/${encodeURIComponent(playerName)}`;
@@ -194,10 +372,11 @@ export class SofaScorePlayerService extends BaseScraper {
   /**
    * Get a player's SofaScore URL by searching for them by name
    * @param playerName The name of the player to search for
+   * @param teamName Optional team name to match against player's team
    * @returns The player's SofaScore URL if found, null otherwise
    */
-  async getPlayerUrl(playerName: string): Promise<string | null> {
-    const playerResult = await this.searchPlayer(playerName);
+  async getPlayerUrl(playerName: string, teamName?: string): Promise<string | null> {
+    const playerResult = await this.searchPlayer(playerName, teamName);
     if (!playerResult) {
       return null;
     }
@@ -207,14 +386,15 @@ export class SofaScorePlayerService extends BaseScraper {
   /**
    * Get detailed player information from SofaScore
    * @param playerName The name of the player to search for
+   * @param teamName Optional team name to match against player's team
    * @returns Detailed player data including strengths, weaknesses, ratings, league performance, and attributes
    */
-  async getPlayerDetails(playerName: string): Promise<PlayerData | null> {
+  async getPlayerDetails(playerName: string, teamName?: string): Promise<PlayerData | null> {
     return this.withRetry(async () => {
       // First search for the player to get their ID and URL
-      const playerResult = await this.searchPlayer(playerName);
+      const playerResult = await this.searchPlayer(playerName, teamName);
       if (!playerResult) {
-        logger.warn(`No player found for: ${playerName}`);
+        logger.warn(`No player found for: ${playerName}${teamName ? ` with team ${teamName}` : ''}`);
         return null;
       }
 

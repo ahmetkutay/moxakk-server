@@ -27,7 +27,7 @@ export const csrfProtection = (req: RequestWithCSRF, res: Response, next: NextFu
 
   // Get CSRF token from request header
   const csrfToken = req.header('X-CSRF-Token');
-  
+
   // Get session token from cookies or headers
   const sessionToken = req.cookies?.sessionToken || req.header('X-Session-Token');
 
@@ -53,16 +53,16 @@ export const csrfProtection = (req: RequestWithCSRF, res: Response, next: NextFu
  */
 export const setCSRFToken = (req: RequestWithCSRF, res: Response, next: NextFunction) => {
   const token = generateCSRFToken();
-  
+
   // Store the token in the response locals for template rendering
   res.locals.csrfToken = token;
-  
+
   // Also set it in a cookie for JavaScript access
   res.cookie('XSRF-TOKEN', token, {
     httpOnly: false, // Allow JavaScript access
     secure: process.env.NODE_ENV === 'production', // Secure in production
     sameSite: 'strict',
   });
-  
+
   next();
 };

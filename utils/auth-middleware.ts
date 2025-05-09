@@ -60,7 +60,7 @@ export const apiKeyAuthWithExclusions = (excludedPaths: string[] = []) => {
     if (excludedPaths.some(path => req.path.startsWith(path))) {
       return next();
     }
-    
+
     // Apply API key authentication
     return apiKeyAuth(req, res, next);
   };
