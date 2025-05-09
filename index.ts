@@ -5,6 +5,7 @@ import connectDB from './config/db';
 import matchRouter from './routes/match';
 import { errorHandler } from './utils/error-handler';
 import logger from './utils/logger';
+import { apiKeyAuthWithExclusions } from './utils/auth-middleware';
 
 dotenv.config();
 
@@ -18,7 +19,8 @@ connectDB().catch((err) => {
   process.exit(1);
 });
 
-app.use('/api', matchRouter);
+// Apply API key authentication to all routes except health check
+app.use('/api', apiKeyAuthWithExclusions(['/api/v1/health']), matchRouter);
 
 // Error handling middleware
 app.use(errorHandler);

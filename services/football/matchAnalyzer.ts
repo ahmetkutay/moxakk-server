@@ -1,10 +1,11 @@
-import { chromium, Page, Browser, BrowserContext } from 'playwright';
+import { chromium } from 'playwright';
 import { redisClient } from '../../config/db';
 import { WeatherService } from '../weather/WeatherService';
 import logger from '../../utils/logger';
 import { ScrapingError } from '../scrapper/baseScrapper';
 import { delay } from '../../utils/common';
-import { RefereeStats } from '../../types/matches';
+import { RefereeStats, PlayerData, TeamPlayerData } from '../../types/matches';
+import { getSofaScorePlayerService } from './sofaScorePlayerService';
 
 interface MatchData {
   id: string;
@@ -109,37 +110,49 @@ async function getRefereeStats(matchId: string): Promise<RefereeStats | undefine
     // Hakem adı ve ülke
     const refereeInfo = await page.evaluate(() => {
       const name = document.querySelector('.broadage-referee-name')?.textContent?.trim() || '';
-      const country = document.querySelector('.broadage-referee-country')?.textContent?.replace('Ülke:', '').trim() || '';
+      const country =
+        document
+          .querySelector('.broadage-referee-country')
+          ?.textContent?.replace('Ülke:', '')
+          .trim() || '';
       return { name, country };
     });
     // Turnuva özetleri (doğru şekilde çek)
     const tournaments = await page.$$eval(
       '.broadage-static-table table.broadage-table.broadage-data-list-table.broadage-home-team tbody tr.broadage-row.broadage-body-row',
-      rows => rows
-        .filter(row => !row.textContent?.includes('TOPLAM'))
-        .map(row => {
-          const cells = row.querySelectorAll('td');
-          const name = cells[0]?.querySelector('.broadage-tournament')?.textContent?.trim() || '';
-          const matchCount = parseInt(cells[1]?.textContent?.trim() || '0', 10);
-          return { name, matchCount };
-        })
+      (rows) =>
+        rows
+          .filter((row) => !row.textContent?.includes('TOPLAM'))
+          .map((row) => {
+            const cells = row.querySelectorAll('td');
+            const name = cells[0]?.querySelector('.broadage-tournament')?.textContent?.trim() || '';
+            const matchCount = parseInt(cells[1]?.textContent?.trim() || '0', 10);
+            return { name, matchCount };
+          })
     );
     // Genel özet (galibiyet, kart, penaltı)
     const summary = await page.evaluate(() => {
-      const summaryTable = Array.from(document.querySelectorAll('.broadage-scrolled-table table.broadage-table.broadage-data-list-table.broadage-home-team')).find(table => {
+      const summaryTable = Array.from(
+        document.querySelectorAll(
+          '.broadage-scrolled-table table.broadage-table.broadage-data-list-table.broadage-home-team'
+        )
+      ).find((table) => {
         const ths = table.querySelectorAll('thead th');
         return ths.length >= 6 && ths[0].textContent?.trim() === '1';
       });
-      if (!summaryTable) return {
-        homeWin: 0,
-        draw: 0,
-        awayWin: 0,
-        yellowCards: '',
-        redCards: '',
-        penalties: ''
-      };
+      if (!summaryTable)
+        return {
+          homeWin: 0,
+          draw: 0,
+          awayWin: 0,
+          yellowCards: '',
+          redCards: '',
+          penalties: '',
+        };
       // TOPLAM satırını bul, yoksa son satırı kullan
-      let totalRow = Array.from(summaryTable.querySelectorAll('tbody tr')).find(tr => tr.textContent?.toUpperCase().includes('TOPLAM'));
+      let totalRow = Array.from(summaryTable.querySelectorAll('tbody tr')).find((tr) =>
+        tr.textContent?.toUpperCase().includes('TOPLAM')
+      );
       if (!totalRow) {
         const allRows = Array.from(summaryTable.querySelectorAll('tbody tr'));
         totalRow = allRows[allRows.length - 1];
@@ -156,7 +169,7 @@ async function getRefereeStats(matchId: string): Promise<RefereeStats | undefine
         awayWin: parseCell(2),
         yellowCards: tds[3]?.textContent?.trim() || '',
         redCards: tds[4]?.textContent?.trim() || '',
-        penalties: tds[5]?.textContent?.trim() || ''
+        penalties: tds[5]?.textContent?.trim() || '',
       };
     });
     // Hakemin yönettiği maçlar tablosunu daha doğru parse et
@@ -199,7 +212,10 @@ async function getRefereeStats(matchId: string): Promise<RefereeStats | undefine
   }
 }
 
-export async function analyzeFootballMatch(homeTeam: string, awayTeam: string): Promise<MatchData & { refereeStats?: RefereeStats }> {
+export async function analyzeFootballMatch(
+  homeTeam: string,
+  awayTeam: string
+): Promise<MatchData & { refereeStats?: RefereeStats; playerData?: { home: any[]; away: any[] } }> {
   const matchInput = `${homeTeam}-${awayTeam}`;
 
   // Check if the match data already exists in Redis
@@ -241,6 +257,10 @@ export async function analyzeFootballMatch(homeTeam: string, awayTeam: string): 
             formation: matchData.away_formation,
             players: matchData.away_lineups ? JSON.parse(matchData.away_lineups) : [],
           },
+        },
+        playerData: {
+          home: matchData.player_data_home ? JSON.parse(matchData.player_data_home) : [],
+          away: matchData.player_data_away ? JSON.parse(matchData.player_data_away) : [],
         },
         standings: {
           home: {
@@ -341,19 +361,24 @@ export async function analyzeFootballMatch(homeTeam: string, awayTeam: string): 
     getRefereeStats(matchId),
   ]);
 
-  // Weather data depends on venue from matchDetails, so can't be fully parallelized
+  // Weather data depends on venue from matchDetails, but can be fetched in parallel with player data
   const weatherService = WeatherService.getInstance();
-  const weatherData = matchDetails.venue
-    ? await weatherService.getWeatherData(matchDetails.venue)
-    : weatherService.createDefaultWeatherData();
+
+  // Fetch weather data and player data in parallel
+  const [weatherData, playerData] = await Promise.all([
+    matchDetails.venue
+      ? weatherService.getWeatherData(matchDetails.venue)
+      : weatherService.createDefaultWeatherData(),
+    getPlayerData(teamLineups),
+  ]);
 
   logger.info('All data collected successfully');
 
-  const matchData: MatchData & { refereeStats?: RefereeStats } = {
+  const matchData: MatchData & { refereeStats?: RefereeStats; playerData?: TeamPlayerData } = {
     id: matchInput,
-    matchInput: matchInput,
-    homeTeam: homeTeam,
-    awayTeam: awayTeam,
+    matchInput,
+    homeTeam,
+    awayTeam,
     unavailablePlayers: matchDetails.unavailablePlayers ?? {
       home: [],
       away: [],
@@ -370,6 +395,7 @@ export async function analyzeFootballMatch(homeTeam: string, awayTeam: string): 
       away: teamStands.away,
     },
     refereeStats,
+    playerData,
   };
 
   // Save to Redis
@@ -392,6 +418,8 @@ export async function analyzeFootballMatch(homeTeam: string, awayTeam: string): 
       away_lineups: JSON.stringify(matchData.teamLineups.away.players),
       home_formation: matchData.teamLineups.home.formation,
       away_formation: matchData.teamLineups.away.formation,
+      player_data_home: JSON.stringify(matchData.playerData?.home || []),
+      player_data_away: JSON.stringify(matchData.playerData?.away || []),
 
       // Home team - Overall standings
       home_standing_position: teamStands.home.overall.position,
@@ -618,9 +646,15 @@ async function getMatchDetails(
       }, team);
     };
 
+    // Fetch unavailable players for home and away teams in parallel
+    const [homeUnavailable, awayUnavailable] = await Promise.all([
+      getUnavailablePlayers(homeTeam),
+      getUnavailablePlayers(awayTeam),
+    ]);
+
     const unavailablePlayers = {
-      home: await getUnavailablePlayers(homeTeam),
-      away: await getUnavailablePlayers(awayTeam),
+      home: homeUnavailable,
+      away: awayUnavailable,
     };
     return { venue, unavailablePlayers };
   } catch (error) {
@@ -711,14 +745,20 @@ async function getH2HData(
       between: string[];
     } = { home: [], away: [], between: [] };
 
-    recentMatches.home = await getMatches(
-      '.quick-statistics__table:nth-child(1) .quick-statistics__table__body',
-      `${homeTeam}`
-    );
-    recentMatches.away = await getMatches(
-      '.quick-statistics__table:nth-child(2) .quick-statistics__table__body',
-      `${awayTeam}`
-    );
+    // Fetch home and away team matches in parallel
+    const [homeMatches, awayMatches] = await Promise.all([
+      getMatches(
+        '.quick-statistics__table:nth-child(1) .quick-statistics__table__body',
+        `${homeTeam}`
+      ),
+      getMatches(
+        '.quick-statistics__table:nth-child(2) .quick-statistics__table__body',
+        `${awayTeam}`
+      ),
+    ]);
+
+    recentMatches.home = homeMatches;
+    recentMatches.away = awayMatches;
 
     await page.evaluate(() => {
       const tabElement = document.querySelector('label[for="tab1_1"]');
@@ -877,6 +917,139 @@ async function getTeamLineups(matchId: string): Promise<TeamLineups> {
   }
 }
 
+async function getPlayerData(teamLineups: TeamLineups): Promise<TeamPlayerData> {
+  const playerService = getSofaScorePlayerService();
+
+  logger.info(
+    'Fetching detailed player data from SofaScore in batches to avoid anti-bot detection'
+  );
+
+  // Create fetch functions for home team players
+  const homePlayerPromises = teamLineups.home.players
+    .filter((player) => player.name) // Filter out players without names
+    .map((player) => {
+      return async () => {
+        try {
+          // Use getPlayerDetails to get extended player information
+          const playerResult = await playerService.getPlayerDetails(player.name!);
+          if (playerResult) {
+            logger.info(`Found detailed player data for ${player.name}: ${playerResult.url}`);
+
+            // Log additional data if available
+            if (playerResult.strengths && playerResult.strengths.length > 0) {
+              logger.info(`Player ${player.name} strengths: ${playerResult.strengths.join(', ')}`);
+            }
+            if (playerResult.averageRating) {
+              logger.info(`Player ${player.name} average rating: ${playerResult.averageRating}`);
+            }
+            return playerResult;
+          }
+          return null;
+        } catch (error) {
+          logger.error(`Error fetching player data for ${player.name}: ${error}`);
+          return null;
+        }
+      };
+    });
+
+  // Create fetch functions for away team players
+  const awayPlayerPromises = teamLineups.away.players
+    .filter((player) => player.name) // Filter out players without names
+    .map((player) => {
+      return async () => {
+        try {
+          // Use getPlayerDetails to get extended player information
+          const playerResult = await playerService.getPlayerDetails(player.name!);
+          if (playerResult) {
+            logger.info(`Found detailed player data for ${player.name}: ${playerResult.url}`);
+
+            // Log additional data if available
+            if (playerResult.strengths && playerResult.strengths.length > 0) {
+              logger.info(`Player ${player.name} strengths: ${playerResult.strengths.join(', ')}`);
+            }
+            if (playerResult.averageRating) {
+              logger.info(`Player ${player.name} average rating: ${playerResult.averageRating}`);
+            }
+            return playerResult;
+          }
+          return null;
+        } catch (error) {
+          logger.error(`Error fetching player data for ${player.name}: ${error}`);
+          return null;
+        }
+      };
+    });
+
+  // Process player data in batches to avoid triggering anti-bot measures
+  const homePlayerResults = await processBatches(homePlayerPromises);
+  const awayPlayerResults = await processBatches(awayPlayerPromises);
+
+  // Filter out null results
+  const homePlayerData = homePlayerResults.filter((result) => result !== null) as PlayerData[];
+  const awayPlayerData = awayPlayerResults.filter((result) => result !== null) as PlayerData[];
+
+  logger.info(
+    `Successfully fetched data for ${homePlayerData.length} home players and ${awayPlayerData.length} away players`
+  );
+
+  return {
+    home: homePlayerData,
+    away: awayPlayerData,
+  };
+}
+
+/**
+ * Process an array of promise-returning functions in batches with delays between batches
+ * to avoid triggering anti-bot measures.
+ * Uses a 3-3-3-2 pattern for batch sizes.
+ * @param promiseFunctions Array of functions that return promises
+ * @returns Array of resolved promise results
+ */
+async function processBatches<T>(promiseFunctions: Array<() => Promise<T>>): Promise<T[]> {
+  const results: T[] = [];
+
+  // If no functions to process, return empty array
+  if (promiseFunctions.length === 0) {
+    return results;
+  }
+
+  // Define batch sizes in 3-3-3-2 pattern
+  const batchSizes = [3, 3, 3, 2];
+  let currentIndex = 0;
+
+  // Process each batch
+  while (currentIndex < promiseFunctions.length) {
+    // Determine batch size for current batch
+    const batchSizeIndex = Math.floor(currentIndex / 11) % batchSizes.length;
+    const batchSize = Math.min(batchSizes[batchSizeIndex], promiseFunctions.length - currentIndex);
+
+    logger.info(
+      `Processing batch of ${batchSize} players (${currentIndex + 1}-${currentIndex + batchSize} of ${promiseFunctions.length})`
+    );
+
+    // Get the current batch of functions
+    const currentBatch = promiseFunctions.slice(currentIndex, currentIndex + batchSize);
+
+    // Process the current batch in parallel
+    const batchResults = await Promise.all(currentBatch.map((fn) => fn()));
+
+    // Add results to the results array
+    results.push(...batchResults);
+
+    // Move to the next batch
+    currentIndex += batchSize;
+
+    // Add delay between batches if there are more batches to process
+    if (currentIndex < promiseFunctions.length) {
+      const delayTime = Math.floor(Math.random() * 1000) + 1500; // Random delay between 1.5-2.5 seconds
+      logger.info(`Waiting ${delayTime}ms before processing next batch...`);
+      await delay(delayTime);
+    }
+  }
+
+  return results;
+}
+
 async function getCurrentStandings(
   matchId: string,
   homeTeam: string,
@@ -954,7 +1127,9 @@ async function getCurrentStandings(
         rawTeams: Array<{ name: string; standing: any } | null>
       ) => {
         // Null değerleri filtreleyerek temiz bir dizi oluştur
-        const teams = rawTeams.filter((team): team is { name: string; standing: any } => team !== null);
+        const teams = rawTeams.filter(
+          (team): team is { name: string; standing: any } => team !== null
+        );
 
         const normalize = (str: string) =>
           str

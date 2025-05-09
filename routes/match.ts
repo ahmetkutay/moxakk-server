@@ -5,7 +5,7 @@ import { FootballCommentaryService } from '../services/football/matchCommentary'
 import { BasketballCommentaryService } from '../services/basketball/basketballCommentary';
 import { analyzeFootballMatch } from '../services/football/matchAnalyzer';
 import { analyzeBasketballMatch } from '../services/basketball/basketballAnalyzer';
-import { FootballMatchData, BasketballMatchData } from '../types/matches';
+import { FootballMatchData, BasketballMatchData, FootballMatchResponse } from '../types/matches';
 import { asyncHandler } from '../utils/error-handler';
 
 const router = express.Router();
@@ -41,6 +41,75 @@ v1Router.post(
     inputSchema: matchRequestSchema,
     analyzer: analyzeBasketballMatch,
     commentaryGenerator: (data) => basketballCommentary.generateCommentary(data, 'Basketball'),
+  })
+);
+
+// Update model accuracy with actual match results
+v1Router.post(
+  '/football/update-accuracy',
+  asyncHandler(async (req, res) => {
+    const updateSchema = z.object({
+      matchId: z.string(),
+      homeGoals: z.number().int().min(0),
+      awayGoals: z.number().int().min(0),
+      predictions: z.array(
+        z.object({
+          provider: z.enum(['gemini', 'openai', 'cohere', 'anthropic', 'mistral']),
+          homeTeamWinPercentage: z.number().min(0).max(100),
+          awayTeamWinPercentage: z.number().min(0).max(100),
+          drawPercentage: z.number().min(0).max(100),
+          over2_5Percentage: z.number().min(0).max(100),
+          bothTeamScorePercentage: z.number().min(0).max(100),
+          predictedScore: z.object({
+            home: z.number(),
+            away: z.number(),
+          }),
+        })
+      ),
+      league: z.string().optional(),
+    });
+
+    try {
+      const data = updateSchema.parse(req.body);
+
+      // Calculate actual results
+      const actualResult = {
+        homeGoals: data.homeGoals,
+        awayGoals: data.awayGoals,
+        homeWin: data.homeGoals > data.awayGoals,
+        awayWin: data.awayGoals > data.homeGoals,
+        draw: data.homeGoals === data.awayGoals,
+        over2_5: data.homeGoals + data.awayGoals > 2.5,
+        bothTeamScore: data.homeGoals > 0 && data.awayGoals > 0,
+      };
+
+      // Update model accuracy
+      await footballCommentary.updateModelAccuracy(
+        data.matchId,
+        actualResult,
+        data.predictions as Array<
+          FootballMatchResponse & {
+            provider: 'gemini' | 'openai' | 'cohere' | 'anthropic' | 'mistral';
+          }
+        >,
+        data.league
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'Model accuracy updated successfully',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation error',
+          details: error.errors,
+        });
+      }
+      throw error;
+    }
   })
 );
 

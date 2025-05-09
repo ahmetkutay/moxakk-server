@@ -6,6 +6,8 @@ import { Mistral } from '@mistralai/mistralai';
 import { rateLimit } from 'express-rate-limit';
 import type { z } from 'zod';
 import dotenv from 'dotenv';
+import PQueue from 'p-queue';
+import NodeCache from 'node-cache';
 
 dotenv.config();
 
@@ -14,7 +16,7 @@ dotenv.config();
 type ResponseSchema = z.ZodObject<{
   content: z.ZodString;
   model: z.ZodString;
-  provider: z.ZodEnum<["gemini", "openai", "cohere", "anthropic", "mistral"]>;
+  provider: z.ZodEnum<['gemini', 'openai', 'cohere', 'anthropic', 'mistral']>;
   timestamp: z.ZodString;
   confidence: z.ZodOptional<z.ZodNumber>;
 }>;
@@ -28,13 +30,6 @@ export interface AIResponse {
 }
 
 export class AIService {
-  private static instance: AIService | null = null;
-  private readonly rateLimiter: ReturnType<typeof rateLimit>;
-  private readonly geminiClient: GenerativeModel;
-  private readonly openAIClient: OpenAI;
-  private readonly cohereClient: CohereClientV2;
-  private readonly anthropicClient: Anthropic;
-  private readonly mistralClient: Mistral;
 
   private constructor() {
     // Check for required API keys
@@ -53,10 +48,38 @@ export class AIService {
     // Mistral (free): mistral-tiny (ücretsiz ve hızlı model)
     this.mistralClient = new Mistral({ apiKey: process.env.MISTRAL_API_KEY as string });
 
+    // Initialize request queue with concurrency limit
+    this.requestQueue = new PQueue({
+      concurrency: parseInt(process.env.AI_CONCURRENCY || '3', 10),
+      timeout: 60000, // 60 seconds timeout
+    });
+
+    // Initialize cache with TTL of 1 hour
+    this.responseCache = new NodeCache({
+      stdTTL: parseInt(process.env.CACHE_TTL || '3600', 10),
+      checkperiod: 120,
+    });
+
     this.rateLimiter = rateLimit({
       windowMs: 60 * 1000,
       max: 100,
     });
+  }
+  private static instance: AIService | null = null;
+  private readonly rateLimiter: ReturnType<typeof rateLimit>;
+  private readonly geminiClient: GenerativeModel;
+  private readonly openAIClient: OpenAI;
+  private readonly cohereClient: CohereClientV2;
+  private readonly anthropicClient: Anthropic;
+  private readonly mistralClient: Mistral;
+  private readonly requestQueue: PQueue;
+  private readonly responseCache: NodeCache;
+
+  static getInstance(): AIService {
+    if (!this.instance) {
+      this.instance = new AIService();
+    }
+    return this.instance;
   }
 
   private validateApiKeys(): void {
@@ -75,17 +98,27 @@ export class AIService {
     }
   }
 
-  static getInstance(): AIService {
-    if (!this.instance) {
-      this.instance = new AIService();
-    }
-    return this.instance;
-  }
+  public async getGeminiResponse(prompt: string): Promise<string | void> {
+    const cacheKey = `gemini:${Buffer.from(prompt).toString('base64')}`;
 
-  public async getGeminiResponse(prompt: string): Promise<string> {
+    // Check cache first
+    const cachedResponse = this.responseCache.get<string>(cacheKey);
+    if (cachedResponse) {
+      console.log('Using cached Gemini response');
+      return cachedResponse;
+    }
+
+    // Queue the request
     try {
-      const response = await this.geminiClient.generateContent(prompt);
-      return response.response.text();
+      const response = await this.requestQueue.add(async () => {
+        console.log('Making Gemini API request');
+        const result = await this.geminiClient.generateContent(prompt);
+        return result.response.text();
+      });
+
+      // Cache the response
+      this.responseCache.set(cacheKey, response);
+      return response;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`Gemini API error: ${errorMessage}`);
@@ -93,19 +126,36 @@ export class AIService {
     }
   }
 
-  public async getOpenAIResponse(prompt: string): Promise<string> {
+  public async getOpenAIResponse(prompt: string): Promise<string | void> {
+    const cacheKey = `openai:${Buffer.from(prompt).toString('base64')}`;
+
+    // Check cache first
+    const cachedResponse = this.responseCache.get<string>(cacheKey);
+    if (cachedResponse) {
+      console.log('Using cached OpenAI response');
+      return cachedResponse;
+    }
+
+    // Queue the request
     try {
-      const response = await this.openAIClient.chat.completions.create({
-        model: 'gpt-4-1106-preview',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores.`,
-          },
-          { role: 'user', content: prompt },
-        ],
+      const response = await this.requestQueue.add(async () => {
+        console.log('Making OpenAI API request');
+        const result = await this.openAIClient.chat.completions.create({
+          model: 'gpt-4-1106-preview',
+          messages: [
+            {
+              role: 'system',
+              content: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores.`,
+            },
+            { role: 'user', content: prompt },
+          ],
+        });
+        return result.choices[0].message.content || '';
       });
-      return response.choices[0].message.content || '';
+
+      // Cache the response
+      this.responseCache.set(cacheKey, response);
+      return response;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`OpenAI API error: ${errorMessage}`);
@@ -113,19 +163,36 @@ export class AIService {
     }
   }
 
-  public async getCohereResponse(prompt: string): Promise<string> {
+  public async getCohereResponse(prompt: string): Promise<string | void> {
+    const cacheKey = `cohere:${Buffer.from(prompt).toString('base64')}`;
+
+    // Check cache first
+    const cachedResponse = this.responseCache.get<string>(cacheKey);
+    if (cachedResponse) {
+      console.log('Using cached Cohere response');
+      return cachedResponse;
+    }
+
+    // Queue the request
     try {
-      const response = await this.cohereClient.chat({
-        model: 'command-r',
-        messages: [
-          { role: 'user', content: prompt },
-          {
-            role: 'assistant',
-            content: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores`,
-          },
-        ],
+      const response = await this.requestQueue.add(async () => {
+        console.log('Making Cohere API request');
+        const result = await this.cohereClient.chat({
+          model: 'command-r',
+          messages: [
+            { role: 'user', content: prompt },
+            {
+              role: 'assistant',
+              content: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores`,
+            },
+          ],
+        });
+        return result.message?.content?.[0]?.text || '';
       });
-      return response.message?.content?.[0]?.text || '';
+
+      // Cache the response
+      this.responseCache.set(cacheKey, response);
+      return response;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`Cohere API error: ${errorMessage}`);
@@ -133,15 +200,32 @@ export class AIService {
     }
   }
 
-  public async getAnthropicResponse(prompt: string): Promise<string> {
+  public async getAnthropicResponse(prompt: string): Promise<string | void> {
+    const cacheKey = `anthropic:${Buffer.from(prompt).toString('base64')}`;
+
+    // Check cache first
+    const cachedResponse = this.responseCache.get<string>(cacheKey);
+    if (cachedResponse) {
+      console.log('Using cached Anthropic response');
+      return cachedResponse;
+    }
+
+    // Queue the request
     try {
-      const response = await this.anthropicClient.messages.create({
-        model: 'claude-3-5-haiku-20241022',
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: prompt }],
-        system: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores.`,
+      const response = await this.requestQueue.add(async () => {
+        console.log('Making Anthropic API request');
+        const result = await this.anthropicClient.messages.create({
+          model: 'claude-3-5-haiku-20241022',
+          max_tokens: 1024,
+          messages: [{ role: 'user', content: prompt }],
+          system: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores.`,
+        });
+        return result.content[0] && 'text' in result.content[0] ? result.content[0].text : '';
       });
-      return response.content[0] && 'text' in response.content[0] ? response.content[0].text : '';
+
+      // Cache the response
+      this.responseCache.set(cacheKey, response);
+      return response;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`Anthropic API error: ${errorMessage}`);
@@ -149,19 +233,36 @@ export class AIService {
     }
   }
 
-  public async getMistralResponse(prompt: string): Promise<string> {
+  public async getMistralResponse(prompt: string): Promise<string | void> {
+    const cacheKey = `mistral:${Buffer.from(prompt).toString('base64')}`;
+
+    // Check cache first
+    const cachedResponse = this.responseCache.get<string>(cacheKey);
+    if (cachedResponse) {
+      console.log('Using cached Mistral response');
+      return cachedResponse;
+    }
+
+    // Queue the request
     try {
-      const response = await this.mistralClient.chat.complete({
-        model: 'pixtral-12b-2409',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores.`,
-          },
-          { role: 'user', content: prompt },
-        ],
+      const response = await this.requestQueue.add(async () => {
+        console.log('Making Mistral API request');
+        const result = await this.mistralClient.chat.complete({
+          model: 'pixtral-12b-2409',
+          messages: [
+            {
+              role: 'system',
+              content: `You are an analyzer on football and you make comments on 2.5 goals over/under, who wins, both team score, match scores.`,
+            },
+            { role: 'user', content: prompt },
+          ],
+        });
+        return result.choices?.[0]?.message?.content || '';
       });
-      return response.choices?.[0]?.message?.content || '';
+
+      // Cache the response
+      this.responseCache.set(cacheKey, response);
+      return response;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`Mistral API error: ${errorMessage}`);

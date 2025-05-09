@@ -347,7 +347,7 @@ export abstract class BaseScraper {
           const screenshotPath = `error-${Date.now()}.png`;
           await page.screenshot({ path: screenshotPath });
           logger.info(`Error screenshot saved to ${screenshotPath}`);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (_e) {
           // Ekran görüntüsü alınırken oluşan hatalar göz ardı edilir
           logger.debug('Failed to take error screenshot');
@@ -515,7 +515,7 @@ export abstract class BaseScraper {
       if (process.env.DEBUG === 'true') {
         try {
           await page.screenshot({ path: `h2h-error-${Date.now()}.png` });
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (_e) {
           // Hata ekran görüntüsü alınırken oluşan hatalar göz ardı edilir
         }

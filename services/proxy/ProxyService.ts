@@ -12,9 +12,9 @@ export interface ProxyConfig {
 export class ProxyService {
   private static instance: ProxyService;
   private proxies: ProxyConfig[] = [];
-  private currentProxyIndex: number = 0;
+  private currentProxyIndex = 0;
   private proxyProvider: string;
-  private isProxyEnabled: boolean = false;
+  private isProxyEnabled = false;
 
   private constructor() {
     this.proxyProvider = process.env.PROXY_PROVIDER || 'manual';
@@ -64,7 +64,7 @@ export class ProxyService {
             port,
             username: username || undefined,
             password: password || undefined,
-            protocol
+            protocol,
           });
         });
 

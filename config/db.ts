@@ -8,6 +8,7 @@ dotenv.config();
 // Redis configuration with advanced options
 const redisConfig = {
   url: process.env.REDIS_URL || 'redis://localhost:6379',
+  password: process.env.REDIS_PASSWORD,
   socket: {
     reconnectStrategy: (retries: number) => {
       const delay = Math.min(retries * 50, 2000);
@@ -17,6 +18,8 @@ const redisConfig = {
     connectTimeout: 10000, // 10 seconds
     keepAlive: 5000, // Keep-alive every 5 seconds
   },
+  // Enable TLS if REDIS_TLS is set to true
+  tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
 };
 
 // Create Redis client
@@ -69,8 +72,8 @@ export class ScrapingRateLimiter {
   private hostLimits: Map<string, { count: number; resetTime: number }> = new Map();
 
   // Default settings: 5 requests every 10 seconds per host
-  private maxRequestsPerWindow: number = 5;
-  private windowMs: number = 10000;
+  private maxRequestsPerWindow = 5;
+  private windowMs = 10000;
 
   private constructor() {}
 
