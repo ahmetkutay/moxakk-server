@@ -3,7 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
-import { csrfProtection } from '../utils/csrf-middleware';
+import { csrfProtectionWithExclusions } from '../utils/csrf-middleware';
 
 const ALLOWED_ORIGINS = ['https://moxakk.com'];
 const MAX_REQUEST_SIZE = '1mb';
@@ -79,8 +79,13 @@ export function setupMiddleware(app: express.Application) {
   // Cookie parser
   app.use(cookieParser());
 
-  // CSRF protection
-  app.use(csrfProtection);
+  // CSRF protection with exclusions for API endpoints
+  app.use(csrfProtectionWithExclusions([
+    '/api/get-match',
+    '/api/get-basketball',
+    '/api/v1/football',
+    '/api/v1/basketball'
+  ]));
 
   // Body parsing
   app.use(express.json({ limit: MAX_REQUEST_SIZE }));

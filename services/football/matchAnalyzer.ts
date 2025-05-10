@@ -5,7 +5,7 @@ import logger from '../../utils/logger';
 import { ScrapingError } from '../scrapper/baseScrapper';
 import { delay } from '../../utils/common';
 import { RefereeStats, PlayerData, TeamPlayerData } from '../../types/matches';
-import { getSofaScorePlayerService } from './sofaScorePlayerService';
+import { getRapidApiPlayerService } from './rapidApiPlayerService';
 
 interface MatchData {
   id: string;
@@ -221,11 +221,11 @@ export async function analyzeFootballMatch(
   // Check if the match data already exists in Redis
   try {
     const key = `football:${matchInput}`;
-    const existingMatch = await redisClient.json.get(key);
+    const existingMatchData = await redisClient.get(key);
 
-    if (existingMatch) {
-      // Type assertion since we know the structure of the data
-      const matchData = existingMatch as any;
+    if (existingMatchData) {
+      // Parse the JSON string back to an object
+      const matchData = JSON.parse(existingMatchData) as any;
 
       return {
         id: matchData.id,
@@ -401,7 +401,7 @@ export async function analyzeFootballMatch(
   // Save to Redis
   try {
     const key = `football:${matchInput}`;
-    await redisClient.json.set(key, '$', {
+    const jsonData = JSON.stringify({
       id: matchData.id,
       match_input: matchData.matchInput,
       venue: matchData.venue,
@@ -487,6 +487,7 @@ export async function analyzeFootballMatch(
       away_away_goal_difference: teamStands.away.awayForm.goalDifference,
       away_away_points: teamStands.away.awayForm.points,
     });
+    await redisClient.set(key, jsonData);
   } catch (error) {
     logger.error('Error saving match data to Redis:', error);
     // Continue even if there's an error saving data
@@ -918,15 +919,23 @@ async function getTeamLineups(matchId: string): Promise<TeamLineups> {
 }
 
 async function getPlayerData(teamLineups: TeamLineups): Promise<TeamPlayerData> {
-  const playerService = getSofaScorePlayerService();
+  const playerService = getRapidApiPlayerService();
 
   logger.info(
-    'Fetching detailed player data from SofaScore in batches to avoid anti-bot detection'
+    'Fetching detailed player data for starting 11 players only (excluding substitutes) from RapidAPI in batches to avoid rate limiting'
   );
 
-  // Create fetch functions for home team players
-  const homePlayerPromises = teamLineups.home.players
-    .filter((player) => player.name) // Filter out players without names
+  // Count starting players and substitutes for both teams
+  const homeStartingPlayers = teamLineups.home.players.filter(player => player.name && player.position !== 'Yedek');
+  const homeSubstitutes = teamLineups.home.players.filter(player => player.name && player.position === 'Yedek');
+  const awayStartingPlayers = teamLineups.away.players.filter(player => player.name && player.position !== 'Yedek');
+  const awaySubstitutes = teamLineups.away.players.filter(player => player.name && player.position === 'Yedek');
+
+  logger.info(`Home team: Found ${homeStartingPlayers.length} starting players and ${homeSubstitutes.length} substitutes`);
+  logger.info(`Away team: Found ${awayStartingPlayers.length} starting players and ${awaySubstitutes.length} substitutes`);
+
+  // Create fetch functions for home team players (only starting 11, not substitutes)
+  const homePlayerPromises = homeStartingPlayers
     .map((player) => {
       return async () => {
         try {
@@ -952,9 +961,8 @@ async function getPlayerData(teamLineups: TeamLineups): Promise<TeamPlayerData> 
       };
     });
 
-  // Create fetch functions for away team players
-  const awayPlayerPromises = teamLineups.away.players
-    .filter((player) => player.name) // Filter out players without names
+  // Create fetch functions for away team players (only starting 11, not substitutes)
+  const awayPlayerPromises = awayStartingPlayers
     .map((player) => {
       return async () => {
         try {
@@ -999,9 +1007,9 @@ async function getPlayerData(teamLineups: TeamLineups): Promise<TeamPlayerData> 
 }
 
 /**
- * Process an array of promise-returning functions in batches with delays between batches
- * to avoid triggering anti-bot measures.
- * Uses a 3-3-3-2 pattern for batch sizes.
+ * Process an array of promise-returning functions in batches with minimal delays between batches
+ * to respect the RapidAPI rate limit of 5 requests per second.
+ * Uses a larger batch size to optimize processing time.
  * @param promiseFunctions Array of functions that return promises
  * @returns Array of resolved promise results
  */
@@ -1013,22 +1021,21 @@ async function processBatches<T>(promiseFunctions: Array<() => Promise<T>>): Pro
     return results;
   }
 
-  // Define batch sizes in 3-3-3-2 pattern
-  const batchSizes = [3, 3, 3, 2];
+  // Define a larger batch size (5 is the maximum allowed by RapidAPI rate limit)
+  const batchSize = 5;
   let currentIndex = 0;
 
   // Process each batch
   while (currentIndex < promiseFunctions.length) {
-    // Determine batch size for current batch
-    const batchSizeIndex = Math.floor(currentIndex / 11) % batchSizes.length;
-    const batchSize = Math.min(batchSizes[batchSizeIndex], promiseFunctions.length - currentIndex);
+    // Calculate the actual batch size for this iteration
+    const currentBatchSize = Math.min(batchSize, promiseFunctions.length - currentIndex);
 
     logger.info(
-      `Processing batch of ${batchSize} players (${currentIndex + 1}-${currentIndex + batchSize} of ${promiseFunctions.length})`
+      `Processing batch of ${currentBatchSize} players (${currentIndex + 1}-${currentIndex + currentBatchSize} of ${promiseFunctions.length})`
     );
 
     // Get the current batch of functions
-    const currentBatch = promiseFunctions.slice(currentIndex, currentIndex + batchSize);
+    const currentBatch = promiseFunctions.slice(currentIndex, currentIndex + currentBatchSize);
 
     // Process the current batch in parallel
     const batchResults = await Promise.all(currentBatch.map((fn) => fn()));
@@ -1037,11 +1044,12 @@ async function processBatches<T>(promiseFunctions: Array<() => Promise<T>>): Pro
     results.push(...batchResults);
 
     // Move to the next batch
-    currentIndex += batchSize;
+    currentIndex += currentBatchSize;
 
-    // Add delay between batches if there are more batches to process
+    // Add a minimal delay between batches to respect the rate limit (5 requests per second)
+    // 200ms delay ensures we don't exceed 5 requests per second
     if (currentIndex < promiseFunctions.length) {
-      const delayTime = Math.floor(Math.random() * 1000) + 1500; // Random delay between 1.5-2.5 seconds
+      const delayTime = 200; // Fixed 200ms delay between batches
       logger.info(`Waiting ${delayTime}ms before processing next batch...`);
       await delay(delayTime);
     }

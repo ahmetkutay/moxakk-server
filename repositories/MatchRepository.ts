@@ -35,7 +35,7 @@ export class MatchRepository {
   async saveFootballMatch(data: FootballMatchData) {
     try {
       const key = `football:${data.id}`;
-      await redisClient.json.set(key, '$', {
+      const jsonData = JSON.stringify({
         id: data.id,
         match_input: data.matchInput,
         venue: data.venue,
@@ -49,6 +49,7 @@ export class MatchRepository {
         weather_humidity: data.weather.humidity,
         weather_wind_speed: data.weather.windSpeed,
       });
+      await redisClient.set(key, jsonData);
     } catch (error) {
       console.error('Error saving football match:', error);
       throw error;
@@ -58,12 +59,12 @@ export class MatchRepository {
   async getFootballMatch(id: string): Promise<FootballMatchData | null> {
     try {
       const key = `football:${id}`;
-      const data = await redisClient.json.get(key);
+      const data = await redisClient.get(key);
 
       if (!data) return null;
 
-      // Type assertion since we know the structure of the data
-      const matchData = data as any;
+      // Parse the JSON string back to an object
+      const matchData = JSON.parse(data) as any;
 
       return {
         id: matchData.id,
@@ -185,12 +186,12 @@ export class MatchRepository {
   async getBasketballMatch(id: string): Promise<BasketballMatchData | null> {
     try {
       const key = `basketball:${id}`;
-      const data = await redisClient.json.get(key);
+      const data = await redisClient.get(key);
 
       if (!data) return null;
 
-      // Type assertion since we know the structure of the data
-      const matchData = data as any;
+      // Parse the JSON string back to an object
+      const matchData = JSON.parse(data) as any;
 
       return {
         id: matchData.id,
@@ -219,7 +220,7 @@ export class MatchRepository {
   async saveBasketballMatch(data: BasketballMatchData) {
     try {
       const key = `basketball:${data.id}`;
-      await redisClient.json.set(key, '$', {
+      const jsonData = JSON.stringify({
         id: data.id,
         match_input: data.matchInput,
         venue: data.venue,
@@ -231,6 +232,7 @@ export class MatchRepository {
         weather_humidity: data.weather.humidity,
         weather_wind_speed: data.weather.windSpeed,
       });
+      await redisClient.set(key, jsonData);
     } catch (error) {
       console.error('Error saving basketball match:', error);
       throw error;

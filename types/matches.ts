@@ -180,6 +180,16 @@ export interface CurrentSeasonStats {
   }[];
 }
 
+export interface PlayerSearchResult {
+  id: string;
+  name: string;
+  url: string;
+  team?: {
+    id: number;
+    name: string;
+  };
+}
+
 export interface PlayerData {
   name: string;
   id: string;

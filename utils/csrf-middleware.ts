@@ -66,3 +66,19 @@ export const setCSRFToken = (req: RequestWithCSRF, res: Response, next: NextFunc
 
   next();
 };
+
+/**
+ * Middleware to protect against CSRF attacks with path exclusions
+ * @param excludedPaths - Array of paths to exclude from CSRF validation
+ */
+export const csrfProtectionWithExclusions = (excludedPaths: string[] = []) => {
+  return (req: RequestWithCSRF, res: Response, next: NextFunction) => {
+    // Skip CSRF check for excluded paths
+    if (excludedPaths.some(path => req.path.startsWith(path))) {
+      return next();
+    }
+
+    // Apply CSRF protection
+    return csrfProtection(req, res, next);
+  };
+};
